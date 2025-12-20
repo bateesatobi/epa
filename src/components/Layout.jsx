@@ -32,7 +32,6 @@ import {
   Dashboard as DashboardIcon,
   People as PeopleIcon,
   LocalShipping as ShipmentsIcon,
-  GpsFixed as TrackingIcon,
   VerifiedUser as ComplianceIcon,
   Assessment as ReportsIcon,
   Logout,
@@ -41,15 +40,22 @@ import {
   Settings,
   Person,
   BusinessCenter,
+  Warehouse,
+  ChevronLeft,
+  ChevronRight,
 } from '@mui/icons-material'
 import HubIcon from '@mui/icons-material/Hub'
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
 import WidgetsIcon from '@mui/icons-material/Widgets'
+import TimelineIcon from '@mui/icons-material/Timeline'
+import BarChartIcon from '@mui/icons-material/BarChart'
 import { useAuth } from '../contexts/AuthContext'
 import { notificationsAPI } from '../services/api'
 import { formatDistanceToNow } from 'date-fns'
+import EPALogo from './EPALogo'
 
-const drawerWidth = 300
+const drawerWidthExpanded = 260
+const drawerWidthCollapsed = 64
 
 const navigationSections = [
   {
@@ -58,23 +64,15 @@ const navigationSections = [
     icon: <HubIcon fontSize="small" />, 
     items: [
   { 
-    text: 'Dashboard', 
+    text: 'Cockpit', 
     icon: <DashboardIcon />, 
     path: '/',
-        description: 'Overview & Analytics',
   },
-  { 
-    text: 'Shipments', 
+  {
+    text: 'Consignments', 
     icon: <ShipmentsIcon />, 
     path: '/shipments',
-        description: 'Manage Freight',
   },
-  { 
-    text: 'Tracking', 
-    icon: <TrackingIcon />, 
-    path: '/tracking',
-        description: 'Real-time Tracking',
-      },
     ],
   },
   {
@@ -86,19 +84,21 @@ const navigationSections = [
     text: 'Compliance', 
     icon: <ComplianceIcon />, 
     path: '/compliance',
-        description: 'Forms & Documents',
   },
   { 
     text: 'Reports', 
     icon: <ReportsIcon />, 
     path: '/reports',
-        description: 'Analytics & Insights',
+      },
+      {
+        text: 'Field Staff Performance',
+        icon: <BarChartIcon />,
+        path: '/field-staff-performance',
       },
       {
         text: 'Notifications',
         icon: <Notifications />,
         path: '/notifications',
-        description: 'Alerts & Updates',
       },
     ],
   },
@@ -111,7 +111,16 @@ const navigationSections = [
         text: 'Users',
         icon: <PeopleIcon />,
         path: '/users',
-        description: 'User Management',
+      },
+      {
+        text: 'Depots',
+        icon: <Warehouse />,
+        path: '/depots',
+      },
+      {
+        text: 'Clearance Activities',
+        icon: <TimelineIcon />,
+        path: '/clearance-activities',
       },
     ],
   },
@@ -128,26 +137,49 @@ const isPathActive = (currentPath, targetPath) => {
 
 const Layout = () => {
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [sidebarExpanded, setSidebarExpanded] = useState(() => {
+    // Load from localStorage, default to false (collapsed)
+    const saved = localStorage.getItem('sidebarExpanded')
+    return saved ? JSON.parse(saved) : false
+  })
   const [anchorEl, setAnchorEl] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
   const { user, logout } = useAuth()
   const [notificationsAnchorEl, setNotificationsAnchorEl] = useState(null)
   const [unreadNotifications, setUnreadNotifications] = useState([])
+  const [unreadCount, setUnreadCount] = useState(0)
   const [notificationsLoading, setNotificationsLoading] = useState(false)
+
+  const drawerWidth = sidebarExpanded ? drawerWidthExpanded : drawerWidthCollapsed
+
+  const handleSidebarToggle = () => {
+    const newState = !sidebarExpanded
+    setSidebarExpanded(newState)
+    localStorage.setItem('sidebarExpanded', JSON.stringify(newState))
+  }
 
   const activeItem = useMemo(
     () => flattenedMenu.find((item) => isPathActive(location.pathname, item.path)) ?? flattenedMenu[0],
     [location.pathname]
   )
   const notificationsMenuOpen = Boolean(notificationsAnchorEl)
-  const unreadCount = unreadNotifications.length
+
+  const fetchUnreadCount = useCallback(async () => {
+    try {
+      const data = await notificationsAPI.getUnreadCount()
+      setUnreadCount(data.count || 0)
+    } catch (error) {
+      console.error('Failed to load unread count', error)
+    }
+  }, [])
 
   const fetchUnreadNotifications = useCallback(async () => {
     try {
       setNotificationsLoading(true)
       const data = await notificationsAPI.getUnread()
       setUnreadNotifications(Array.isArray(data) ? data : [])
+      // Don't update count here - it's limited to 10 items, use fetchUnreadCount() instead
     } catch (error) {
       console.error('Failed to load notifications', error)
     } finally {
@@ -156,14 +188,28 @@ const Layout = () => {
   }, [])
 
   useEffect(() => {
+    fetchUnreadCount()
     fetchUnreadNotifications()
-  }, [fetchUnreadNotifications])
+  }, [fetchUnreadCount, fetchUnreadNotifications])
 
   useEffect(() => {
-    const handler = () => fetchUnreadNotifications()
+    const handler = () => {
+      fetchUnreadCount()
+      fetchUnreadNotifications()
+    }
     window.addEventListener('notifications:updated', handler)
     return () => window.removeEventListener('notifications:updated', handler)
-  }, [fetchUnreadNotifications])
+  }, [fetchUnreadCount, fetchUnreadNotifications])
+
+  // Poll for new notifications every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchUnreadCount()
+      fetchUnreadNotifications()
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(interval)
+  }, [fetchUnreadCount, fetchUnreadNotifications])
 
   const handleNotificationsOpen = (event) => {
     setNotificationsAnchorEl(event.currentTarget)
@@ -183,6 +229,7 @@ const Layout = () => {
     try {
       await notificationsAPI.markAllRead()
       setUnreadNotifications([])
+      setUnreadCount(0) // Update count immediately
       window.dispatchEvent(new Event('notifications:updated'))
     } catch (error) {
       console.error('Failed to mark notifications as read', error)
@@ -197,6 +244,8 @@ const Layout = () => {
       if (!notification.is_read) {
         await notificationsAPI.markRead(notification.id)
         setUnreadNotifications((prev) => prev.filter((item) => item.id !== notification.id))
+        // Update count when a notification is marked as read
+        setUnreadCount((prev) => Math.max(0, prev - 1))
         window.dispatchEvent(new Event('notifications:updated'))
       }
     } catch (error) {
@@ -228,294 +277,301 @@ const Layout = () => {
   }
 
   const drawer = (
-    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      {/* Logo Section */}
+    <Box 
+      sx={{ 
+        height: '100%', 
+        display: 'flex', 
+        flexDirection: 'column', 
+        position: 'relative',
+        backgroundColor: '#350D36', // Slack's dark purple background
+        color: 'white',
+      }}
+    >
+      {/* Logo Section - Slack-style header */}
       <Box
         sx={{
-          background: 'radial-gradient(circle at 10% 20%, #3349ff 0%, #16254f 45%, #08102b 100%)',
+          backgroundColor: '#350D36',
           color: 'white',
-          p: 3,
+          p: sidebarExpanded ? 2 : 1.5,
           display: 'flex',
           alignItems: 'center',
-          gap: 2,
-          boxShadow: '0 18px 40px rgba(0, 18, 56, 0.35)',
-          position: 'relative',
-          overflow: 'hidden',
+          justifyContent: sidebarExpanded ? 'flex-start' : 'center',
+          gap: sidebarExpanded ? 1.5 : 0,
+          minHeight: 60,
+          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
         <Box
           sx={{
-            width: 48,
-            height: 48,
-            borderRadius: 2,
-            background: 'rgba(255,255,255,0.18)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            backdropFilter: 'blur(10px)',
+            flexShrink: 0,
+            width: sidebarExpanded ? 'auto' : 36,
+            height: 36,
           }}
         >
-          <ShipmentsIcon sx={{ fontSize: 28 }} />
+          {sidebarExpanded ? (
+            <EPALogo width={100} height={32} variant="white" sx={{ maxWidth: '100%' }} />
+          ) : (
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: 1,
+                background: 'rgba(255,255,255,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                '&:hover': {
+                  background: 'rgba(255,255,255,0.15)',
+                },
+                overflow: 'hidden',
+              }}
+            >
+              <EPALogo width={28} height={28} variant="white" sx={{ maxWidth: '100%' }} />
+            </Box>
+          )}
         </Box>
-        <Box>
-          <Typography variant="h6" fontWeight="bold" sx={{ lineHeight: 1.1, letterSpacing: 0.5 }}>
-            EPA Command
-          </Typography>
-          <Typography variant="caption" sx={{ opacity: 0.85, fontSize: '0.7rem' }}>
-            Freight Management Suite
-          </Typography>
-        </Box>
-        <Chip
-          label="Live"
-          size="small"
-          sx={{
-            ml: 'auto',
-            backgroundColor: 'rgba(76, 175, 80, 0.18)',
-            color: '#b2ffb0',
-            fontWeight: 600,
-            letterSpacing: 0.5,
-          }}
-        />
-        <Box
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%)',
-            pointerEvents: 'none',
-          }}
-        />
+        {sidebarExpanded && (
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                opacity: 0.8, 
+                fontSize: '0.65rem', 
+                display: 'block',
+                fontWeight: 500,
+                letterSpacing: '0.5px',
+              }}
+            >
+              EPA COCKPIT
+            </Typography>
+          </Box>
+        )}
       </Box>
       
-      <Divider />
+      {/* Expand/Collapse Button - Slack-style */}
+      <IconButton
+        onClick={handleSidebarToggle}
+        sx={{
+          position: 'absolute',
+          top: 60,
+          right: -14,
+          zIndex: 1300,
+          width: 28,
+          height: 28,
+          backgroundColor: 'white',
+          border: 'none',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+          color: '#350D36',
+          '&:hover': {
+            backgroundColor: '#f5f5f5',
+            transform: 'scale(1.08)',
+          },
+          transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
+      >
+        {sidebarExpanded ? <ChevronLeft fontSize="small" /> : <ChevronRight fontSize="small" />}
+      </IconButton>
       
-      {/* Navigation Menu */}
+      {/* Navigation Menu - Slack-style */}
       <List
         sx={{
           flexGrow: 1,
-          pt: 0,
-          px: 1.5,
-          background: 'linear-gradient(180deg, #f8f9ff 0%, rgba(248, 249, 255, 0.3) 100%)',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2.5,
+          pt: 1,
+          px: sidebarExpanded ? 1 : 0.5,
+          overflow: 'auto',
+          '&::-webkit-scrollbar': {
+            width: '6px',
+          },
+          '&::-webkit-scrollbar-track': {
+            background: 'transparent',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            background: 'rgba(255, 255, 255, 0.2)',
+            borderRadius: '3px',
+            '&:hover': {
+              background: 'rgba(255, 255, 255, 0.3)',
+            },
+          },
         }}
       >
-        {navigationSections.map((section) => (
-          <Box key={section.title} sx={{ mb: 1.5 }}>
-            <ListSubheader
-              disableSticky
-              sx={{
-                lineHeight: 1.4,
-                fontSize: '0.75rem',
-                textTransform: 'uppercase',
-                letterSpacing: 1.2,
-                fontWeight: 700,
-                color: 'primary.main',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1,
-                px: 0,
-                background: 'transparent',
-              }}
-            >
-              <Box
+        {navigationSections.map((section, sectionIndex) => (
+          <Box key={section.title} sx={{ mb: sidebarExpanded ? 2.5 : 1.5 }}>
+            {sidebarExpanded && (
+              <ListSubheader
+                disableSticky
                 sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  width: 32,
-                  height: 32,
-                  borderRadius: 1.5,
-                  background: 'linear-gradient(135deg, rgba(30,60,114,0.16) 0%, rgba(42,82,152,0.24) 100%)',
-                  boxShadow: 'inset 0 2px 6px rgba(8,24,68,0.18)',
-                  color: 'primary.dark',
+                  fontSize: '0.7rem',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1.2px',
+                  fontWeight: 700,
+                  color: 'rgba(255, 255, 255, 0.5)',
+                  px: 2,
+                  py: 1.25,
+                  background: 'transparent',
+                  lineHeight: 1.2,
                 }}
               >
-                {section.icon}
-              </Box>
-              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                 {section.title}
-                <Typography variant="caption" sx={{ fontSize: '0.65rem', color: 'text.secondary', mt: 0.25 }}>
-                  {section.caption}
-                </Typography>
-              </Box>
-            </ListSubheader>
-            {section.items.map((item) => {
+              </ListSubheader>
+            )}
+            {section.items.map((item, itemIndex) => {
               const isSelected = isPathActive(location.pathname, item.path)
-          return (
-                <ListItem key={item.text} disablePadding sx={{ mb: 1.25 }}>
-              <Tooltip title={item.description} placement="right" arrow>
-                <ListItemButton
-                  selected={isSelected}
-                  onClick={() => {
-                    navigate(item.path)
-                    setMobileOpen(false)
-                  }}
-                  sx={{
-                        borderRadius: 2.5,
-                    py: 1.4,
-                        px: 2.25,
-                    mb: 0.5,
-                        position: 'relative',
-                        overflow: 'hidden',
-                        transition: 'all 0.25s ease-in-out',
-                        color: isSelected ? 'common.white' : 'text.primary',
-                        boxShadow: isSelected ? '0 20px 35px rgba(30, 60, 114, 0.45)' : 'none',
-                        '&::before': {
-                          content: '""',
-                          position: 'absolute',
-                          inset: 0,
-                          background: isSelected
-                            ? 'linear-gradient(135deg, rgba(30, 60, 114, 0.9) 0%, rgba(42, 82, 152, 0.95) 100%)'
-                            : 'linear-gradient(135deg, rgba(30,60,114,0.08) 0%, rgba(19,33,68,0.05) 100%)',
-                          opacity: isSelected ? 1 : 0,
-                          transition: 'opacity 0.25s ease-in-out',
-                        },
-                        '&::after': {
-                          content: '""',
-                          position: 'absolute',
-                          left: 6,
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          width: 6,
-                          height: isSelected ? '70%' : 0,
-                          borderRadius: 3,
-                          background: 'linear-gradient(180deg, #6ec6ff 0%, #3f51b5 100%)',
-                          transition: 'height 0.25s ease-in-out',
-                        },
-                    '&:hover': {
-                          transform: 'translateX(6px)',
-                          boxShadow: isSelected
-                            ? '0 24px 45px rgba(34, 89, 255, 0.35)'
-                            : '0 18px 30px rgba(30, 60, 114, 0.18)',
-                          '&::before': {
-                            opacity: 0.85,
-                          },
-                          '& .MuiListItemIcon-root': {
-                            color: isSelected ? 'common.white' : 'primary.main',
-                      backgroundColor: isSelected 
-                              ? 'rgba(255,255,255,0.2)'
-                              : 'rgba(30, 60, 114, 0.12)',
+              return (
+                <Tooltip 
+                  key={item.text} 
+                  title={!sidebarExpanded ? item.text : ''} 
+                  placement="right"
+                  arrow
+                  PopperProps={{
+                    sx: {
+                      '& .MuiTooltip-tooltip': {
+                        backgroundColor: '#1a1a1a',
+                        color: 'white',
+                        fontSize: '0.75rem',
+                        padding: '6px 10px',
+                        borderRadius: '4px',
                       },
-                    },
-                    '&.Mui-selected': {
-                          color: 'common.white',
-                      '& .MuiListItemIcon-root': {
-                            color: 'common.white',
-                            backgroundColor: 'rgba(255,255,255,0.22)',
-                      },
-                      '& .MuiListItemText-primary': {
-                            fontWeight: 700,
-                          },
-                          '&::before': {
-                            opacity: 1,
+                      '& .MuiTooltip-arrow': {
+                        color: '#1a1a1a',
                       },
                     },
                   }}
                 >
-                  <ListItemIcon
-                    sx={{
-                          minWidth: 48,
-                          color: isSelected ? 'common.white' : 'text.secondary',
-                          zIndex: 1,
-                          transition: 'all 0.2s ease',
-                          borderRadius: 1.5,
-                          backgroundColor: isSelected ? 'rgba(255,255,255,0.18)' : 'rgba(30, 60, 114, 0.08)',
-                          px: 1,
-                          py: 0.75,
-                          display: 'flex',
-                          justifyContent: 'center',
-                          alignItems: 'center',
+                  <ListItem 
+                    disablePadding 
+                    sx={{ 
+                      mb: 0.25, 
+                      px: sidebarExpanded ? 1 : 0.5,
                     }}
                   >
-                    {item.icon}
-                  </ListItemIcon>
-                  <ListItemText 
-                        sx={{ zIndex: 1 }}
-                    primary={item.text}
-                    primaryTypographyProps={{
-                      fontSize: '0.95rem',
-                      fontWeight: isSelected ? 600 : 500,
-                          letterSpacing: 0.2,
-                          sx: {
-                            color: isSelected ? 'common.white' : 'text.primary',
-                            transition: 'color 0.2s ease',
+                    <ListItemButton
+                      selected={isSelected}
+                      onClick={() => {
+                        navigate(item.path)
+                        setMobileOpen(false)
+                      }}
+                      sx={{
+                        borderRadius: sidebarExpanded ? '6px' : '8px',
+                        py: 1,
+                        px: sidebarExpanded ? 1.5 : 1,
+                        justifyContent: sidebarExpanded ? 'flex-start' : 'center',
+                        minHeight: 36,
+                        transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+                        backgroundColor: isSelected 
+                          ? 'rgba(255, 255, 255, 0.15)' 
+                          : 'transparent',
+                        color: isSelected ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                        position: 'relative',
+                        '&::before': isSelected ? {
+                          content: '""',
+                          position: 'absolute',
+                          left: 0,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          width: '3px',
+                          height: '20px',
+                          backgroundColor: 'white',
+                          borderRadius: '0 2px 2px 0',
+                        } : {},
+                        '&:hover': {
+                          backgroundColor: isSelected 
+                            ? 'rgba(255, 255, 255, 0.2)' 
+                            : 'rgba(255, 255, 255, 0.08)',
+                          color: 'white',
+                          transform: 'translateX(2px)',
+                        },
+                        '&.Mui-selected': {
+                          backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                          color: 'white',
+                          fontWeight: 600,
+                          '&:hover': {
+                            backgroundColor: 'rgba(255, 255, 255, 0.2)',
                           },
-                        }}
-                      />
-                      <Box
+                          '& .MuiListItemIcon-root': {
+                            color: 'white',
+                          },
+                        },
+                      }}
+                    >
+                      <ListItemIcon
                         sx={{
-                          zIndex: 1,
-                          ml: 'auto',
-                          fontSize: '0.72rem',
-                          color: isSelected ? 'rgba(255,255,255,0.85)' : 'text.secondary',
-                          letterSpacing: 0.3,
-                          fontWeight: 500,
+                          minWidth: sidebarExpanded ? 28 : 'auto',
+                          color: isSelected ? 'white' : 'rgba(255, 255, 255, 0.7)',
+                          justifyContent: 'center',
+                          transition: 'all 0.15s ease',
+                          fontSize: '20px',
                         }}
                       >
-                        {item.description}
-                      </Box>
-                </ListItemButton>
-              </Tooltip>
-            </ListItem>
-          )
-        })}
+                        {React.cloneElement(item.icon, { 
+                          fontSize: sidebarExpanded ? 'small' : 'medium',
+                          sx: { fontSize: sidebarExpanded ? '20px' : '22px' }
+                        })}
+                      </ListItemIcon>
+                      {sidebarExpanded && (
+                        <ListItemText 
+                          primary={item.text.toUpperCase()}
+                          primaryTypographyProps={{
+                            fontSize: '0.875rem',
+                            fontWeight: isSelected ? 600 : 400,
+                            letterSpacing: '0.2px',
+                            sx: {
+                              transition: 'font-weight 0.15s ease',
+                            },
+                          }}
+                        />
+                      )}
+                    </ListItemButton>
+                  </ListItem>
+                </Tooltip>
+              )
+            })}
           </Box>
         ))}
       </List>
       
-      {/* Footer Section */}
-      <Box
-        sx={{
-          p: 2.5,
-          borderTop: '1px solid',
-          borderColor: 'divider',
-          background: 'linear-gradient(180deg, rgba(8,16,43,0.92) 0%, #020510 100%)',
-          color: 'rgba(255,255,255,0.88)',
-        }}
-      >
-        <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1, letterSpacing: 0.4 }}>
-          Operational Pulse
-        </Typography>
-        <Stack spacing={1.25}>
-          <Box>
-            <Box display="flex" justifyContent="space-between">
-              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.6)' }}>
-                Network Health
-              </Typography>
-              <Typography variant="caption" sx={{ color: 'rgba(129,230,217,0.95)' }}>
-                99.3%
-              </Typography>
-            </Box>
-            <LinearProgress
-              variant="determinate"
-              value={99.3}
-              sx={{
-                mt: 0.5,
-                height: 6,
-                borderRadius: 4,
-                backgroundColor: 'rgba(255,255,255,0.12)',
-                '& .MuiLinearProgress-bar': {
-                  background: 'linear-gradient(90deg, #81ffef 0%, #4990ff 100%)',
-                },
-              }}
-            />
-          </Box>
-        <Chip
-            icon={<BusinessCenter sx={{ color: 'rgba(255,255,255,0.8) !important' }} />}
-            label="EPA Carriers — Executive Mode"
-          size="small"
+      {/* Footer Section - Slack-style */}
+      {sidebarExpanded && (
+        <Box
           sx={{
-            width: '100%',
-            justifyContent: 'flex-start',
-              background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, rgba(255,255,255,0.04) 100%)',
-              color: 'rgba(255,255,255,0.8)',
-            fontWeight: 500,
-              borderRadius: 2,
+            p: 1.5,
+            borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+            backgroundColor: 'rgba(0, 0, 0, 0.1)',
           }}
-        />
-        </Stack>
-      </Box>
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              px: 1,
+              py: 0.75,
+              borderRadius: '6px',
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              transition: 'all 0.15s ease',
+              '&:hover': {
+                backgroundColor: 'rgba(255, 255, 255, 0.1)',
+              },
+            }}
+          >
+            <BusinessCenter sx={{ fontSize: '16px', color: 'rgba(255, 255, 255, 0.6)' }} />
+            <Typography 
+              variant="caption" 
+              sx={{ 
+                color: 'rgba(255, 255, 255, 0.7)',
+                fontSize: '0.75rem',
+                fontWeight: 500,
+              }}
+            >
+              EPA Carriers
+            </Typography>
+          </Box>
+        </Box>
+      )}
     </Box>
   )
 
@@ -531,6 +587,7 @@ const Layout = () => {
           boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
           borderBottom: '1px solid',
           borderColor: 'divider',
+          transition: 'width 0.3s ease, margin 0.3s ease',
         }}
       >
         <Toolbar sx={{ px: { xs: 2, sm: 3 }, minHeight: '70px !important' }}>
@@ -548,31 +605,8 @@ const Layout = () => {
             <MenuIcon />
           </IconButton>
           
-          {/* Page Title */}
-          <Box sx={{ flexGrow: 1 }}>
-            <Typography 
-              variant="h5" 
-              noWrap 
-              component="div" 
-              sx={{ 
-                fontWeight: 700,
-                color: 'text.primary',
-                fontSize: { xs: '1.1rem', sm: '1.5rem' },
-              }}
-            >
-              {activeItem.text}
-            </Typography>
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                color: 'text.secondary',
-                fontSize: '0.75rem',
-                display: { xs: 'none', sm: 'block' },
-              }}
-            >
-              {activeItem.description}
-            </Typography>
-          </Box>
+          {/* Spacer to push items to the right */}
+          <Box sx={{ flexGrow: 1 }} />
 
           {/* Search Bar */}
           <Box
@@ -600,7 +634,7 @@ const Layout = () => {
               <Search sx={{ color: 'text.secondary', fontSize: 20 }} />
             </Box>
             <InputBase
-              placeholder="Search shipments, users..."
+              placeholder="Search consignments, users..."
               sx={{
                 flex: 1,
                 color: 'text.primary',
@@ -626,7 +660,19 @@ const Layout = () => {
                 },
               }}
             >
-              <Badge badgeContent={unreadCount} color="error">
+              <Badge 
+                badgeContent={unreadCount > 0 ? unreadCount : null} 
+                color="error"
+                max={99}
+                sx={{
+                  '& .MuiBadge-badge': {
+                    fontSize: '0.7rem',
+                    minWidth: '18px',
+                    height: '18px',
+                    padding: '0 4px',
+                  },
+                }}
+              >
                 <Notifications />
               </Badge>
             </IconButton>
@@ -754,14 +800,21 @@ const Layout = () => {
               }}
             >
               <Avatar 
+                src={
+                  user?.user_photo
+                    ? user.user_photo.startsWith('data:')
+                      ? user.user_photo
+                      : `data:image/jpeg;base64,${user.user_photo}`
+                    : undefined
+                }
                 sx={{ 
-                  bgcolor: 'primary.main',
+                  bgcolor: user?.user_photo ? 'transparent' : 'primary.main',
                   width: 40,
                   height: 40,
                   fontWeight: 600,
                 }}
               >
-                {user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'A'}
+                {!user?.user_photo && (user?.full_name?.charAt(0) || user?.email?.charAt(0) || 'A')}
               </Avatar>
             </IconButton>
           </Tooltip>
@@ -834,6 +887,8 @@ const Layout = () => {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
+              backgroundColor: '#350D36',
+              borderRight: 'none',
             },
           }}
         >
@@ -846,6 +901,10 @@ const Layout = () => {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
+              transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+              overflowX: 'hidden',
+              borderRight: 'none',
+              backgroundColor: '#350D36',
             },
           }}
           open
@@ -862,6 +921,7 @@ const Layout = () => {
           mt: { xs: '56px', sm: '70px' },
           backgroundColor: '#f8f9fa',
           minHeight: 'calc(100vh - 70px)',
+          transition: 'width 0.3s ease',
         }}
       >
         <Outlet />
@@ -871,4 +931,5 @@ const Layout = () => {
 }
 
 export default Layout
+
 

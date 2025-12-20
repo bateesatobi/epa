@@ -51,6 +51,25 @@ export const authAPI = {
   logout: async () => {
     await api.post('/api/auth/logout')
   },
+  // New password management endpoints
+  changePassword: async (currentPassword, newPassword) => {
+    const response = await api.put('/api/auth/me/password', {
+      current_password: currentPassword,
+      new_password: newPassword,
+    })
+    return response.data
+  },
+  forgotPassword: async (email) => {
+    const response = await api.post('/api/auth/forgot-password', { email })
+    return response.data
+  },
+  resetPassword: async (token, newPassword) => {
+    const response = await api.post('/api/auth/reset-password', {
+      token,
+      new_password: newPassword,
+    })
+    return response.data
+  },
 }
 
 // Users API
@@ -75,8 +94,93 @@ export const usersAPI = {
     const response = await api.patch(`/api/users/${id}/deactivate`)
     return response.data
   },
+  activate: async (id) => {
+    const response = await api.patch(`/api/users/${id}/activate`)
+    return response.data
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/api/users/${id}`)
+    return response.data
+  },
   getByRole: async (role) => {
     const response = await api.get(`/api/users/role/${role}`)
+    return response.data
+  },
+  // Admin reset password
+  resetPassword: async (id, data) => {
+    const response = await api.post(`/api/users/${id}/reset-password`, data)
+    return response.data
+  },
+  // Role management
+  listRoles: async () => {
+    const response = await api.get('/api/users/roles/list')
+    return response.data
+  },
+  getRole: async (id) => {
+    const response = await api.get(`/api/users/roles/${id}`)
+    return response.data
+  },
+  createRole: async (data) => {
+    const response = await api.post('/api/users/roles', data)
+    return response.data
+  },
+  updateRole: async (id, data) => {
+    const response = await api.put(`/api/users/roles/${id}`, data)
+    return response.data
+  },
+  deleteRole: async (id) => {
+    const response = await api.delete(`/api/users/roles/${id}`)
+    return response.data
+  },
+  // Role assignments
+  assignRoles: async (id, roleIds) => {
+    const response = await api.post(`/api/users/${id}/roles`, { role_ids: roleIds })
+    return response.data
+  },
+  removeRoles: async (id, roleIds) => {
+    const response = await api.delete(`/api/users/${id}/roles`, {
+      data: { role_ids: roleIds },
+    })
+    return response.data
+  },
+  // Old activity assignments removed - now using clearance activity assignments per shipment
+  // Use shipmentsAPI.clearanceActivityAssignments methods instead
+  // Bulk operations
+  bulkActivate: async (userIds) => {
+    const response = await api.post('/api/users/bulk-activate', { user_ids: userIds })
+    return response.data
+  },
+  bulkDeactivate: async (userIds) => {
+    const response = await api.post('/api/users/bulk-deactivate', { user_ids: userIds })
+    return response.data
+  },
+  bulkAssignRoles: async (userIds, roleIds) => {
+    const response = await api.post('/api/users/bulk-assign-roles', {
+      user_ids: userIds,
+      role_ids: roleIds,
+    })
+    return response.data
+  },
+  // Old bulkAssignActivities removed - use shipmentsAPI.bulkCreateClearanceActivityAssignments instead
+  // Statistics and reporting
+  getStatistics: async () => {
+    const response = await api.get('/api/users/statistics')
+    return response.data
+  },
+  getActivityLog: async (id, params = {}) => {
+    const response = await api.get(`/api/users/${id}/activity-log`, { params })
+    return response.data
+  },
+  getWorkload: async (id) => {
+    const response = await api.get(`/api/users/${id}/workload`)
+    return response.data
+  },
+  getFieldStaffPerformance: async () => {
+    const response = await api.get('/api/users/field-staff/performance')
+    return response.data
+  },
+  getStaffPerformanceByShipment: async (userId) => {
+    const response = await api.get(`/api/users/field-staff/${userId}/performance-by-shipment`)
     return response.data
   },
 }
@@ -85,6 +189,10 @@ export const usersAPI = {
 export const shipmentsAPI = {
   list: async (params = {}) => {
     const response = await api.get('/api/shipments', { params })
+    return response.data
+  },
+  getClearanceActivityCounts: async () => {
+    const response = await api.get('/api/shipments/clearance-activity-counts')
     return response.data
   },
   get: async (id) => {
@@ -111,6 +219,69 @@ export const shipmentsAPI = {
     const response = await api.post(`/api/shipments/${id}/assign`, data)
     return response.data
   },
+  // Clearance activity assignments (replaces old activity assignments)
+  createClearanceActivityAssignment: async (shipmentId, data) => {
+    const response = await api.post(`/api/shipments/${shipmentId}/clearance-activity-assignments`, data)
+    return response.data
+  },
+  listClearanceActivityAssignments: async (shipmentId) => {
+    const response = await api.get(`/api/shipments/${shipmentId}/clearance-activity-assignments`)
+    return response.data
+  },
+  updateClearanceActivityAssignment: async (assignmentId, data) => {
+    const response = await api.put(`/api/shipments/clearance-activity-assignments/${assignmentId}`, data)
+    return response.data
+  },
+  deleteClearanceActivityAssignment: async (assignmentId) => {
+    const response = await api.delete(`/api/shipments/clearance-activity-assignments/${assignmentId}`)
+    return response.data
+  },
+  bulkCreateClearanceActivityAssignments: async (shipmentId, data) => {
+    const response = await api.post(`/api/shipments/${shipmentId}/clearance-activity-assignments/bulk`, data)
+    return response.data
+  },
+  assignMultipleActivitiesToUser: async (shipmentId, data) => {
+    const response = await api.post(`/api/shipments/${shipmentId}/clearance-activity-assignments/single-user-multiple`, data)
+    return response.data
+  },
+  // Old activity assignments (deprecated - use clearance activity assignments above)
+  createActivityAssignment: async (shipmentId, data) => {
+    const response = await api.post(`/api/shipments/${shipmentId}/activity-assignments`, data)
+    return response.data
+  },
+  listActivityAssignments: async (shipmentId) => {
+    const response = await api.get(`/api/shipments/${shipmentId}/activity-assignments`)
+    return response.data
+  },
+  getMyAssignments: async (params = {}) => {
+    const response = await api.get('/api/shipments/activity-assignments/my-assignments', { params })
+    return response.data
+  },
+  updateActivityAssignment: async (assignmentId, data) => {
+    const response = await api.put(`/api/shipments/activity-assignments/${assignmentId}`, data)
+    return response.data
+  },
+  // Clearance history
+  getClearanceHistory: async (shipmentId) => {
+    const response = await api.get(`/api/shipments/${shipmentId}/clearance-history`)
+    return response.data
+  },
+  updateClearanceStatus: async (shipmentId, data) => {
+    const response = await api.post(`/api/shipments/${shipmentId}/clearance-status`, data)
+    return response.data
+  },
+  deleteActivityAssignment: async (assignmentId) => {
+    const response = await api.delete(`/api/shipments/activity-assignments/${assignmentId}`)
+    return response.data
+  },
+  listAllActivityAssignments: async (params = {}) => {
+    const response = await api.get('/api/shipments/activity-assignments/all', { params })
+    return response.data
+  },
+  bulkCreateActivityAssignments: async (shipmentId, assignments) => {
+    const response = await api.post(`/api/shipments/${shipmentId}/activity-assignments/bulk`, assignments)
+    return response.data
+  },
   getTimeline: async (id) => {
     const response = await api.get(`/api/shipments/${id}/timeline`)
     return response.data
@@ -131,10 +302,73 @@ export const shipmentsAPI = {
     })
     return response.data
   },
+  batchDelete: async (shipmentIds) => {
+    const response = await api.post('/api/shipments/batch-delete', {
+      shipment_ids: shipmentIds,
+    })
+    return response.data
+  },
 }
 
 // Compliance API
 export const complianceAPI = {
+  // Get clients with documents
+  getClientsWithDocuments: async (params = {}) => {
+    const response = await api.get('/api/compliance/clients', { params })
+    return response.data
+  },
+  // Get client documents
+  getClientDocuments: async (clientId) => {
+    const response = await api.get(`/api/compliance/clients/${clientId}/documents`)
+    return response.data
+  },
+  // View document
+  viewDocument: async (documentId) => {
+    const response = await api.get(`/api/compliance/documents/${documentId}/view`)
+    return response.data
+  },
+  // Upload document for client
+  uploadDocumentForClient: async (clientId, documentData, shipmentId = null) => {
+    const params = shipmentId ? { shipment_id: shipmentId } : {}
+    const response = await api.post(`/api/compliance/clients/${clientId}/documents`, documentData, { params })
+    return response.data
+  },
+  // Attach document to shipment
+  attachDocumentToShipment: async (documentId, shipmentId) => {
+    const response = await api.patch(`/api/compliance/documents/${documentId}/attach-shipment`, { shipment_id: shipmentId })
+    return response.data
+  },
+  // Get document shipments
+  getDocumentShipments: async (documentId) => {
+    const response = await api.get(`/api/compliance/documents/${documentId}/shipments`)
+    return response.data
+  },
+  // Query client (send communication)
+  queryClient: async (clientId, communicationData) => {
+    const response = await api.post(`/api/compliance/clients/${clientId}/query`, communicationData)
+    return response.data
+  },
+  // Get client communications
+  getClientCommunications: async (clientId, shipmentId = null) => {
+    const params = shipmentId ? { shipment_id: shipmentId } : {}
+    const response = await api.get(`/api/compliance/clients/${clientId}/communications`, { params })
+    return response.data
+  },
+  // Get shipment documents
+  getShipmentDocuments: async (shipmentId) => {
+    const response = await api.get(`/api/compliance/shipments/${shipmentId}/documents`)
+    return response.data
+  },
+  reviewDocument: async (documentId, reviewData) => {
+    const response = await api.patch(`/api/compliance/documents/${documentId}/review`, reviewData)
+    return response.data
+  },
+  // Get shipments with compliance info
+  getShipmentsWithCompliance: async (params = {}) => {
+    const response = await api.get('/api/compliance/shipments', { params })
+    return response.data
+  },
+  // Legacy endpoints (deprecated - kept for backward compatibility but will be removed)
   generateT1: async (data) => {
     const response = await api.post('/api/compliance/t1/generate', data)
     return response.data
@@ -207,6 +441,22 @@ export const reportsAPI = {
     const response = await api.post('/api/reports/generate', data)
     return response.data
   },
+  getActivityAnalytics: async () => {
+    const response = await api.get('/api/reports/analytics/activities')
+    return response.data
+  },
+  getFieldStaffAnalytics: async () => {
+    const response = await api.get('/api/reports/analytics/field-staff')
+    return response.data
+  },
+  getOverdueAnalytics: async () => {
+    const response = await api.get('/api/reports/analytics/overdue')
+    return response.data
+  },
+  getTimelineAnalytics: async (days = 30) => {
+    const response = await api.get('/api/reports/analytics/timeline', { params: { days } })
+    return response.data
+  },
 }
 
 // Notifications API
@@ -237,6 +487,10 @@ export const notificationsAPI = {
   },
   markAllRead: async () => {
     const response = await api.post('/api/notifications/mark-all-read')
+    return response.data
+  },
+  getUnreadCount: async () => {
+    const response = await api.get('/api/notifications/unread/count')
     return response.data
   },
 }
@@ -272,6 +526,107 @@ export const billingAPI = {
   calculateCosts: async (shipmentId) => {
     const response = await api.post('/api/billing/costs/calculate', null, {
       params: { shipment_id: shipmentId },
+    })
+    return response.data
+  },
+}
+
+// Client API
+export const clientsAPI = {
+  register: async (data) => {
+    const response = await api.post('/api/clients/register', data)
+    return response.data
+  },
+  login: async (telephone, password) => {
+    const response = await api.post('/api/clients/login', {
+      telephone,
+      password,
+    })
+    return response.data
+  },
+  uploadDocument: async (documentData) => {
+    const response = await api.post('/api/clients/documents', documentData)
+    return response.data
+  },
+  getMyDocuments: async () => {
+    const response = await api.get('/api/clients/documents')
+    return response.data
+  },
+  getDocumentStatus: async () => {
+    const response = await api.get('/api/clients/documents/status')
+    return response.data
+  },
+  // Admin endpoints
+  list: async (params = {}) => {
+    const response = await api.get('/api/clients', { params })
+    return response.data
+  },
+  get: async (clientId) => {
+    const response = await api.get(`/api/clients/${clientId}`)
+    return response.data
+  },
+  approve: async (clientId, status, rejectionReason = null) => {
+    const response = await api.patch(`/api/clients/${clientId}/approve`, {
+      status,
+      rejection_reason: rejectionReason,
+    })
+    return response.data
+  },
+  getDocuments: async (clientId) => {
+    const response = await api.get(`/api/clients/${clientId}/documents`)
+    return response.data
+  },
+}
+
+// Depots API
+export const depotsAPI = {
+  list: async (params = {}) => {
+    const response = await api.get('/api/depots', { params })
+    return response.data
+  },
+  get: async (id) => {
+    const response = await api.get(`/api/depots/${id}`)
+    return response.data
+  },
+  create: async (data) => {
+    const response = await api.post('/api/depots', data)
+    return response.data
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/api/depots/${id}`, data)
+    return response.data
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/api/depots/${id}`)
+    return response.data
+  },
+}
+
+export const clearanceActivitiesAPI = {
+  list: async (params = {}) => {
+    const response = await api.get('/api/clearance-activities', { params })
+    return response.data
+  },
+  get: async (id) => {
+    const response = await api.get(`/api/clearance-activities/${id}`)
+    return response.data
+  },
+  create: async (data) => {
+    const response = await api.post('/api/clearance-activities', data)
+    return response.data
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/api/clearance-activities/${id}`, data)
+    return response.data
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/api/clearance-activities/${id}`)
+    return response.data
+  },
+  reorder: async (activityId, newPosition) => {
+    const response = await api.post('/api/clearance-activities/reorder', {
+      activity_id: activityId,
+      new_position: newPosition,
     })
     return response.data
   },

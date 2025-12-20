@@ -151,9 +151,10 @@ const DataTable = ({
                   onClick={() => onRowClick && onRowClick(row)}
                   sx={{
                     cursor: onRowClick ? 'pointer' : 'default',
+                    backgroundColor: row.is_overdue ? 'error.light' : 'inherit',
                     '&:hover': onRowClick
                       ? {
-                          backgroundColor: 'action.hover',
+                          backgroundColor: row.is_overdue ? 'error.main' : 'action.hover',
                         }
                       : {},
                   }}
@@ -188,6 +189,7 @@ const DataTable = ({
 }
 
 export default DataTable
+
 
 
 

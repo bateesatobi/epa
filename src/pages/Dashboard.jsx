@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Grid,
   Card,
@@ -171,13 +172,15 @@ const SecondaryStatCard = ({ label, value, color, icon }) => (
 )
 
 const Dashboard = () => {
+  const navigate = useNavigate()
   const [loading, setLoading] = useState(true)
   const [kpis, setKpis] = useState(null)
+  const [activityAnalytics, setActivityAnalytics] = useState(null)
+  const [fieldStaffAnalytics, setFieldStaffAnalytics] = useState(null)
+  const [overdueAnalytics, setOverdueAnalytics] = useState(null)
+  const [timelineAnalytics, setTimelineAnalytics] = useState(null)
   const [shipments, setShipments] = useState([])
-  const [users, setUsers] = useState([])
-  const [trends, setTrends] = useState(null)
   const [alerts, setAlerts] = useState([])
-  const [recentActivity, setRecentActivity] = useState([])
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -191,29 +194,30 @@ const Dashboard = () => {
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
-      const [kpisData, shipmentsData, usersData, trendsData, alertsData] = await Promise.all([
+      const [
+        kpisData,
+        activityData,
+        fieldStaffData,
+        overdueData,
+        timelineData,
+        shipmentsData,
+        alertsData,
+      ] = await Promise.all([
         reportsAPI.getKPIs(),
+        reportsAPI.getActivityAnalytics(),
+        reportsAPI.getFieldStaffAnalytics(),
+        reportsAPI.getOverdueAnalytics(),
+        reportsAPI.getTimelineAnalytics(7), // Last 7 days for dashboard
         shipmentsAPI.list({ limit: 10 }),
-        usersAPI.list({ limit: 5 }),
-        reportsAPI.getDelayTrends(30),
         reportsAPI.getControlRoomAlerts(),
       ])
       setKpis(kpisData)
+      setActivityAnalytics(activityData)
+      setFieldStaffAnalytics(fieldStaffData)
+      setOverdueAnalytics(overdueData)
+      setTimelineAnalytics(timelineData)
       setShipments(shipmentsData.items || [])
-      setUsers(usersData.items || [])
-      setTrends(trendsData)
       setAlerts(alertsData)
-      
-      // Generate recent activity
-      const activity = shipmentsData.items?.slice(0, 5).map(s => ({
-        id: s.id,
-        type: 'shipment',
-        title: `Shipment ${s.shipment_number}`,
-        description: `${s.origin} → ${s.destination}`,
-        status: s.status,
-        time: s.created_at,
-      })) || []
-      setRecentActivity(activity)
     } catch (error) {
       toast.error('Failed to load dashboard data')
       console.error(error)
@@ -235,30 +239,30 @@ const Dashboard = () => {
     )
   }
 
-  const statusData = kpis
-    ? [
-        { name: 'Pending', value: kpis.pending, color: '#ff9800' },
-        { name: 'In Transit', value: kpis.in_transit, color: '#2196f3' },
-        { name: 'Delivered', value: kpis.delivered, color: '#4caf50' },
-      ]
-    : []
-
-  const onTimeDelivery = kpis?.total_shipments > 0 
-    ? ((kpis.delivered / kpis.total_shipments) * 100).toFixed(1)
-    : 0
-
-  const delayRate = trends?.delay_rate || 0
-
-  // Weekly trend data (mock for now, should come from API)
-  const weeklyData = [
-    { day: 'Mon', shipments: 12, delivered: 10 },
-    { day: 'Tue', shipments: 15, delivered: 13 },
-    { day: 'Wed', shipments: 18, delivered: 16 },
-    { day: 'Thu', shipments: 14, delivered: 12 },
-    { day: 'Fri', shipments: 20, delivered: 18 },
-    { day: 'Sat', shipments: 8, delivered: 7 },
-    { day: 'Sun', shipments: 5, delivered: 5 },
+  // Activity status distribution
+  const totalPending = activityAnalytics?.activities?.reduce((sum, a) => sum + (a.pending || 0), 0) || 0
+  const totalInProgress = activityAnalytics?.activities?.reduce((sum, a) => sum + (a.in_progress || 0), 0) || 0
+  const totalCompleted = activityAnalytics?.activities?.reduce((sum, a) => sum + (a.completed || 0), 0) || 0
+  
+  const activityStatusData = [
+    { name: 'Completed', value: totalCompleted, color: '#2e7d32' },
+    { name: 'In Progress', value: totalInProgress, color: '#1976d2' },
+    { name: 'Pending', value: totalPending, color: '#ed6c02' },
   ]
+
+  const completionRate = kpis?.completion_rate || 0
+
+  // Real timeline data from API
+  const weeklyData = timelineAnalytics?.timeline?.map((item) => {
+    const date = new Date(item.date)
+    const dayName = format(date, 'EEE')
+    return {
+      day: dayName,
+      shipments: item.shipments || 0,
+      assignments: item.assignments || 0,
+      completed: item.completed || 0,
+    }
+  }) || []
 
   return (
     <Box>
@@ -282,7 +286,7 @@ const Dashboard = () => {
             </Box>
             <Box>
               <Typography variant="h4" gutterBottom fontWeight="bold">
-                Dashboard Overview
+                Cockpit Overview
               </Typography>
               <Typography variant="body2" color="text.secondary">
                 Real-time insights and performance metrics
@@ -301,7 +305,7 @@ const Dashboard = () => {
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Total Shipments"
+            title="Total Consignments"
             value={kpis?.total_shipments || 0}
             icon={<LocalShipping sx={{ fontSize: 32 }} />}
             color="primary"
@@ -310,31 +314,29 @@ const Dashboard = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="On-Time Delivery"
-            value={`${onTimeDelivery}%`}
+            title="Completion Rate"
+            value={`${completionRate.toFixed(1)}%`}
             icon={<CheckCircle sx={{ fontSize: 32 }} />}
             color="success"
-            subtitle="Target: 95%"
-            trend={2.1}
+            subtitle={`${kpis?.completed_assignments || 0} of ${kpis?.total_assignments || 0} assignments`}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="In Transit"
+            title="In Progress"
             value={kpis?.in_transit || 0}
             icon={<TrendingUp sx={{ fontSize: 32 }} />}
             color="info"
-            subtitle="Active shipments"
+            subtitle="Active activities"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Delay Rate"
-            value={`${delayRate.toFixed(1)}%`}
+            title="Overdue Consignments"
+            value={kpis?.overdue_shipments || 0}
             icon={<Warning sx={{ fontSize: 32 }} />}
-            color={delayRate > 10 ? 'error' : 'warning'}
-            subtitle="Target: <5%"
-            trend={-1.5}
+            color={kpis?.overdue_shipments > 0 ? 'error' : 'success'}
+            subtitle="Exceeding 9 days"
           />
         </Grid>
       </Grid>
@@ -343,34 +345,34 @@ const Dashboard = () => {
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid item xs={12} sm={6} md={3}>
           <SecondaryStatCard
-            label="Pending Shipments"
-            value={kpis?.pending || 0}
-            color="#ff9800"
+            label="Pending Activities"
+            value={totalPending}
+            color="#ed6c02"
             icon={<PendingActions />}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <SecondaryStatCard
-            label="Delivered Today"
-            value={kpis?.delivered || 0}
+            label="Completed Activities"
+            value={totalCompleted}
             color="#2e7d32"
             icon={<TaskAlt />}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <SecondaryStatCard
-            label="Active Users"
-            value={users.length}
+            label="Field Staff"
+            value={fieldStaffAnalytics?.total_staff || 0}
             color="#0288d1"
             icon={<PeopleAlt />}
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <SecondaryStatCard
-            label="Total Revenue"
-            value={`UGX ${(kpis?.total_shipments * 500000 || 0).toLocaleString()}`}
+            label="Total Activities"
+            value={activityAnalytics?.total_activities || 0}
             color="#1976d2"
-            icon={<AttachMoney />}
+            icon={<Assessment />}
           />
         </Grid>
       </Grid>
@@ -383,7 +385,7 @@ const Dashboard = () => {
               <Stack direction="row" alignItems="center" spacing={1}>
                 <Timeline color="primary" />
                 <Typography variant="h6" gutterBottom fontWeight="bold">
-                  Weekly Shipment Trends
+                  Last 7 Days Activity Trends
                 </Typography>
               </Stack>
               <ResponsiveContainer width="100%" height={300}>
@@ -393,7 +395,11 @@ const Dashboard = () => {
                       <stop offset="5%" stopColor="#1976d2" stopOpacity={0.8}/>
                       <stop offset="95%" stopColor="#1976d2" stopOpacity={0}/>
                     </linearGradient>
-                    <linearGradient id="colorDelivered" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorAssignments" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0288d1" stopOpacity={0.8}/>
+                      <stop offset="95%" stopColor="#0288d1" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#2e7d32" stopOpacity={0.8}/>
                       <stop offset="95%" stopColor="#2e7d32" stopOpacity={0}/>
                     </linearGradient>
@@ -403,8 +409,9 @@ const Dashboard = () => {
                   <YAxis />
                   <RechartsTooltip />
                   <Legend />
-                  <Area type="monotone" dataKey="shipments" stroke="#1976d2" fillOpacity={1} fill="url(#colorShipments)" name="Total Shipments" />
-                  <Area type="monotone" dataKey="delivered" stroke="#2e7d32" fillOpacity={1} fill="url(#colorDelivered)" name="Delivered" />
+                  <Area type="monotone" dataKey="shipments" stroke="#1976d2" fillOpacity={1} fill="url(#colorShipments)" name="New Shipments" />
+                  <Area type="monotone" dataKey="assignments" stroke="#0288d1" fillOpacity={1} fill="url(#colorAssignments)" name="New Assignments" />
+                  <Area type="monotone" dataKey="completed" stroke="#2e7d32" fillOpacity={1} fill="url(#colorCompleted)" name="Completed Activities" />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
@@ -416,12 +423,12 @@ const Dashboard = () => {
             <CardContent>
               <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <DonutLarge color="primary" />
-                Status Distribution
+                Activity Status Distribution
               </Typography>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={statusData}
+                    data={activityStatusData}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -430,7 +437,7 @@ const Dashboard = () => {
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {statusData.map((entry, index) => (
+                    {activityStatusData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
@@ -450,7 +457,7 @@ const Dashboard = () => {
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
                 <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <DirectionsBoatFilled color="primary" />
-                  Recent Shipments
+                  Recent Consignments
                 </Typography>
                 <Chip label={`${shipments.length} active`} size="small" color="primary" />
               </Box>
@@ -458,24 +465,27 @@ const Dashboard = () => {
                 {shipments.slice(0, 5).map((shipment, index) => (
                   <React.Fragment key={shipment.id}>
                     <ListItem
+                      onClick={() => navigate(`/shipments/${shipment.id}`)}
                       sx={{
                         borderRadius: 1,
                         mb: 1,
                         backgroundColor: alpha('#1976d2', 0.02),
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
                         '&:hover': {
-                          backgroundColor: alpha('#1976d2', 0.05),
+                          backgroundColor: alpha('#1976d2', 0.08),
+                          transform: 'translateX(4px)',
                         },
                       }}
                     >
                       <ListItemAvatar>
                         <Avatar
                           sx={{
-                            bgcolor:
-                              shipment.status === 'delivered'
-                                ? 'success.main'
-                                : shipment.status === 'in_transit'
-                                ? 'info.main'
-                                : 'warning.main',
+                            bgcolor: shipment.is_overdue
+                              ? 'error.main'
+                              : shipment.current_clearance_activity_name
+                              ? 'info.main'
+                              : 'warning.main',
                           }}
                         >
                           <LocalShipping />
@@ -483,27 +493,37 @@ const Dashboard = () => {
                       </ListItemAvatar>
                       <ListItemText
                         primary={
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Typography variant="body1" fontWeight="medium">
+                          <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                            <Typography variant="body1" fontWeight="medium" color={shipment.is_overdue ? 'error.main' : 'inherit'}>
                               {shipment.shipment_number}
                             </Typography>
-                            <Chip
-                              label={shipment.status}
-                              size="small"
-                              color={
-                                shipment.status === 'delivered'
-                                  ? 'success'
-                                  : shipment.status === 'in_transit'
-                                  ? 'info'
-                                  : 'warning'
-                              }
-                            />
+                            {shipment.is_overdue && (
+                              <Chip label="Overdue" size="small" color="error" />
+                            )}
+                            {shipment.current_clearance_activity_name && (
+                              <Chip
+                                label={shipment.current_clearance_activity_name}
+                                size="small"
+                                color="primary"
+                                variant="outlined"
+                              />
+                            )}
                           </Box>
                         }
                         secondary={
-                          <Typography variant="body2" color="text.secondary">
-                            {shipment.origin} → {shipment.destination}
-                          </Typography>
+                          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                            <Typography variant="body2" color="text.secondary">
+                              {shipment.origin} → {shipment.destination}
+                            </Typography>
+                            {shipment.days_in_system !== undefined && (
+                              <Chip
+                                label={`${shipment.days_in_system} days`}
+                                size="small"
+                                variant="outlined"
+                                color={shipment.is_overdue ? 'error' : 'default'}
+                              />
+                            )}
+                          </Stack>
                         }
                       />
                     </ListItem>
@@ -525,56 +545,60 @@ const Dashboard = () => {
                 <Box sx={{ mt: 2 }}>
                   <Box sx={{ mb: 3 }}>
                     <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography variant="body2">On-Time Delivery</Typography>
+                      <Typography variant="body2">Activity Completion Rate</Typography>
                       <Typography variant="body2" fontWeight="bold">
-                        {onTimeDelivery}%
+                        {completionRate.toFixed(1)}%
                       </Typography>
                     </Box>
                     <LinearProgress
                       variant="determinate"
-                      value={onTimeDelivery}
+                      value={completionRate}
                       sx={{
                         height: 8,
                         borderRadius: 4,
                         backgroundColor: alpha('#1976d2', 0.1),
                         '& .MuiLinearProgress-bar': {
-                          backgroundColor: onTimeDelivery >= 95 ? 'success.main' : 'warning.main',
+                          backgroundColor: completionRate >= 80 ? 'success.main' : completionRate >= 60 ? 'warning.main' : 'error.main',
                         },
                       }}
                     />
                   </Box>
                   <Box sx={{ mb: 3 }}>
                     <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography variant="body2">Fleet Utilization</Typography>
-                      <Typography variant="body2" fontWeight="bold">78%</Typography>
+                      <Typography variant="body2">Field Staff Performance</Typography>
+                      <Typography variant="body2" fontWeight="bold">
+                        {fieldStaffAnalytics?.avg_completion_rate?.toFixed(1) || 0}%
+                      </Typography>
                     </Box>
                     <LinearProgress
                       variant="determinate"
-                      value={78}
+                      value={fieldStaffAnalytics?.avg_completion_rate || 0}
                       sx={{
                         height: 8,
                         borderRadius: 4,
                         backgroundColor: alpha('#1976d2', 0.1),
                         '& .MuiLinearProgress-bar': {
-                          backgroundColor: 'info.main',
+                          backgroundColor: (fieldStaffAnalytics?.avg_completion_rate || 0) >= 80 ? 'success.main' : 'info.main',
                         },
                       }}
                     />
                   </Box>
                   <Box>
                     <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography variant="body2">Customer Satisfaction</Typography>
-                      <Typography variant="body2" fontWeight="bold">4.8/5</Typography>
+                      <Typography variant="body2">Overdue Consignments</Typography>
+                      <Typography variant="body2" fontWeight="bold" color={kpis?.overdue_shipments > 0 ? 'error.main' : 'success.main'}>
+                        {kpis?.overdue_shipments || 0}
+                      </Typography>
                     </Box>
                     <LinearProgress
                       variant="determinate"
-                      value={96}
+                      value={kpis?.overdue_shipments > 0 ? 100 : 0}
                       sx={{
                         height: 8,
                         borderRadius: 4,
                         backgroundColor: alpha('#1976d2', 0.1),
                         '& .MuiLinearProgress-bar': {
-                          backgroundColor: 'success.main',
+                          backgroundColor: kpis?.overdue_shipments > 0 ? 'error.main' : 'success.main',
                         },
                       }}
                     />

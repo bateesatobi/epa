@@ -74,6 +74,15 @@ const Notifications = () => {
     fetchNotifications()
   }, [tabValue, refreshKey])
 
+  // Poll for new notifications every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      fetchNotifications()
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(interval)
+  }, [tabValue, refreshKey])
+
   useEffect(() => {
     if (focusNotificationId) {
       const timer = setTimeout(() => {
@@ -260,7 +269,7 @@ const Notifications = () => {
           </Typography>
         </Paper>
       ) : (
-        <Stack spacing={2}>
+        <Stack spacing={0}>
           {notifications.map((notification) => {
             const isUnread = !notification.is_read
             const typeColor = typeColorMap[notification.notification_type] || 'default'
@@ -269,72 +278,155 @@ const Notifications = () => {
               <Paper
                 key={notification.id}
                 id={`notification-${notification.id}`}
+                elevation={0}
                 sx={{
-                  p: 3,
-                  borderRadius: 3,
-                  borderLeft: '4px solid',
-                  borderColor: isUnread ? 'primary.main' : 'divider',
-                  transition: 'background 0.3s ease, box-shadow 0.3s ease',
+                  p: 0,
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  backgroundColor: isUnread ? 'action.hover' : 'background.paper',
+                  cursor: 'pointer',
+                  transition: 'background-color 0.2s ease',
+                  '&:hover': {
+                    backgroundColor: isUnread ? 'action.selected' : 'action.hover',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                  },
                   '&.highlight': {
-                    boxShadow: '0 0 0 3px rgba(25, 118, 210, 0.2)',
+                    backgroundColor: 'primary.light',
+                    animation: 'pulse 1.5s ease-in-out',
+                  },
+                  '@keyframes pulse': {
+                    '0%, 100%': { backgroundColor: 'primary.light' },
+                    '50%': { backgroundColor: 'primary.main', opacity: 0.8 },
                   },
                 }}
+                onClick={() => {
+                  if (notification.resource_type && notification.resource_id) {
+                    handleView(notification)
+                  }
+                }}
               >
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={2}>
-                  <Box>
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                      <Typography variant="h6" fontWeight={700}>
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  sx={{
+                    p: 2,
+                    alignItems: 'flex-start',
+                  }}
+                >
+                  {/* Unread indicator dot */}
+                  {isUnread && (
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        bgcolor: 'primary.main',
+                        mt: 1.5,
+                        flexShrink: 0,
+                      }}
+                    />
+                  )}
+                  {!isUnread && <Box sx={{ width: 8, flexShrink: 0 }} />}
+
+                  {/* Main content */}
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                      <Typography
+                        variant="subtitle2"
+                        fontWeight={isUnread ? 600 : 400}
+                        sx={{
+                          color: isUnread ? 'text.primary' : 'text.secondary',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
                         {notification.title}
                       </Typography>
                       <Chip
-                        label={notification.notification_type.toUpperCase()}
+                        label={notification.notification_type}
                         size="small"
                         color={typeColor}
-                      />
-                      <Chip
-                        label={notification.is_read ? 'Read' : 'Unread'}
-                        size="small"
-                        color={notification.is_read ? 'default' : 'primary'}
-                        variant={notification.is_read ? 'outlined' : 'filled'}
+                        sx={{
+                          height: 20,
+                          fontSize: '0.65rem',
+                          fontWeight: 500,
+                        }}
                       />
                     </Stack>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{
+                        mb: 1,
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        lineHeight: 1.4,
+                      }}
+                    >
                       {notification.message}
                     </Typography>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <Typography variant="caption" color="text.disabled">
+                        {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                      </Typography>
+                    </Stack>
                   </Box>
-                  <Typography variant="caption" color="text.disabled">
-                    {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                  </Typography>
-                </Stack>
 
-                <Divider sx={{ my: 2 }} />
-
-                <Stack direction="row" spacing={1} justifyContent="flex-end">
-                  {notification.resource_type && notification.resource_id && (
-                    <Tooltip title="View linked resource">
-                      <IconButton color="primary" onClick={() => handleView(notification)}>
-                        <Visibility />
+                  {/* Action buttons */}
+                  <Stack
+                    direction="row"
+                    spacing={0.5}
+                    sx={{ flexShrink: 0 }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {notification.resource_type && notification.resource_id && (
+                      <Tooltip title="View linked resource">
+                        <IconButton
+                          size="small"
+                          color="primary"
+                          onClick={() => handleView(notification)}
+                          sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}
+                        >
+                          <Visibility fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    {notification.is_read ? (
+                      <Tooltip title="Mark as unread">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleMarkUnread(notification)}
+                          sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}
+                        >
+                          <Undo fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    ) : (
+                      <Tooltip title="Mark as read">
+                        <IconButton
+                          size="small"
+                          color="success"
+                          onClick={() => handleMarkRead(notification)}
+                          sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}
+                        >
+                          <CheckCircle fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                    <Tooltip title="Delete notification">
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleDelete(notification)}
+                        sx={{ opacity: 0.7, '&:hover': { opacity: 1 } }}
+                      >
+                        <Delete fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                  )}
-                  {notification.is_read ? (
-                    <Tooltip title="Mark as unread">
-                      <IconButton onClick={() => handleMarkUnread(notification)}>
-                        <Undo />
-                      </IconButton>
-                    </Tooltip>
-                  ) : (
-                    <Tooltip title="Mark as read">
-                      <IconButton color="success" onClick={() => handleMarkRead(notification)}>
-                        <CheckCircle />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                  <Tooltip title="Delete notification">
-                    <IconButton color="error" onClick={() => handleDelete(notification)}>
-                      <Delete />
-                    </IconButton>
-                  </Tooltip>
+                  </Stack>
                 </Stack>
               </Paper>
             )
