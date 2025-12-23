@@ -46,6 +46,7 @@ import {
 } from '@mui/icons-material'
 import { reportsAPI } from '../services/api'
 import { toast } from 'react-toastify'
+import { PageSkeleton, SkeletonCard, SkeletonStatCard } from '../components/LoadingStates'
 import {
   BarChart,
   Bar,
@@ -128,10 +129,21 @@ const Reports = () => {
     toast.info('Refreshing reports...')
   }
 
-  if (loading) {
+  // Show skeleton on initial load
+  if (loading && !kpis) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
+      <Box>
+        <Box sx={{ mb: 3 }}>
+          <PageSkeleton showHeader={true} showTable={false} />
+        </Box>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={8}>
+            <SkeletonCard height={300} />
+          </Grid>
+          <Grid item xs={12} md={4}>
+            <SkeletonCard height={300} />
+          </Grid>
+        </Grid>
       </Box>
     )
   }

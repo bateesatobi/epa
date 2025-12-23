@@ -34,6 +34,7 @@ import {
 } from '@mui/icons-material'
 import { complianceAPI, shipmentsAPI } from '../services/api'
 import { toast } from 'react-toastify'
+import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 import {
   showSuccessAlert,
   showErrorAlert,
@@ -135,6 +136,10 @@ const Compliance = () => {
         setSubmitting(false)
       }
     }
+  }
+
+  if (loading && shipments.length === 0) {
+    return <PageSkeleton showHeader={true} showTable={true} />
   }
 
   return (

@@ -11,6 +11,7 @@ import {
 import { ArrowBack } from '@mui/icons-material'
 import ShipmentClearanceHistory from '../components/ShipmentClearanceHistory'
 import { shipmentsAPI } from '../services/api'
+import { PageSkeleton } from '../components/LoadingStates'
 
 const ShipmentClearanceHistoryPage = () => {
   const { shipmentId } = useParams()
@@ -55,12 +56,8 @@ const ShipmentClearanceHistoryPage = () => {
     )
   }
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
-      </Box>
-    )
+  if (loading && !shipment) {
+    return <PageSkeleton showHeader={true} showTable={false} />
   }
 
   return (

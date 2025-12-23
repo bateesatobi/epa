@@ -44,6 +44,7 @@ import {
 } from '@mui/icons-material'
 import { usersAPI } from '../services/api'
 import { format } from 'date-fns'
+import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 
 const FieldStaffPerformance = () => {
   const [loading, setLoading] = useState(true)
@@ -71,12 +72,8 @@ const FieldStaffPerformance = () => {
     }
   }
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
-      </Box>
-    )
+  if (loading && !data) {
+    return <PageSkeleton showHeader={true} showTable={true} />
   }
 
   if (error) {

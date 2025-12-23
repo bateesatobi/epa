@@ -30,6 +30,7 @@ import ClearanceActivities from './pages/ClearanceActivities'
 import ClientRegistration from './pages/ClientRegistration'
 import ClientLogin from './pages/ClientLogin'
 import ClientDashboard from './pages/ClientDashboard'
+import NotFound from './pages/NotFound'
 import { Box, CircularProgress } from '@mui/material'
 
 function PrivateRoute({ children }) {
@@ -73,7 +74,10 @@ function AppRoutes() {
         <Route path="notifications" element={<Notifications />} />
         <Route path="depots" element={<Depots />} />
         <Route path="clearance-activities" element={<ClearanceActivities />} />
+        <Route path="*" element={<NotFound />} />
       </Route>
+      {/* Catch-all for routes outside protected area */}
+      <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   )
 }

@@ -247,10 +247,8 @@ const Notifications = () => {
         ))}
       </Tabs>
 
-      {loading ? (
-        <Box display="flex" alignItems="center" justifyContent="center" minHeight="40vh">
-          <CircularProgress />
-        </Box>
+      {loading && notifications.length === 0 ? (
+        <PageSkeleton showHeader={false} showTable={false} />
       ) : notifications.length === 0 ? (
         <Paper
           sx={{

@@ -82,6 +82,7 @@ import { format } from 'date-fns'
 import FormDialog from '../components/FormDialog'
 import FormTextField from '../components/FormTextField'
 import FormSelect from '../components/FormSelect'
+import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 import {
   showSuccessAlert,
   showErrorAlert,
@@ -635,11 +636,7 @@ const Users = () => {
   }
 
   if (loading && users.length === 0) {
-    return (
-      <Box display="flex" justifyContent="center" p={4}>
-        <CircularProgress />
-      </Box>
-    )
+    return <PageSkeleton showHeader={true} showTable={true} />
   }
 
   return (

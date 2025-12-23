@@ -81,6 +81,7 @@ import {
 import { complianceAPI, shipmentsAPI } from '../services/api'
 import { format } from 'date-fns'
 import { toast } from 'react-toastify'
+import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 import FormDialog from '../components/FormDialog'
 import FormTextField from '../components/FormTextField'
 import FormSelect from '../components/FormSelect'
@@ -525,12 +526,8 @@ const ComplianceDetail = () => {
     }
   }
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    )
+  if (loading && !shipment) {
+    return <PageSkeleton showHeader={true} showTable={false} />
   }
 
   if (!shipment) {

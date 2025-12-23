@@ -76,6 +76,7 @@ import DataTable from '../components/DataTable'
 import FormDialog from '../components/FormDialog'
 import FormTextField from '../components/FormTextField'
 import FormSelect from '../components/FormSelect'
+import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 import {
   showSuccessAlert,
   showErrorAlert,
@@ -669,12 +670,9 @@ const Shipments = () => {
     }
   }
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" p={4}>
-        <CircularProgress />
-      </Box>
-    )
+  // Show skeleton on initial load
+  if (loading && shipments.length === 0) {
+    return <PageSkeleton showHeader={true} showTable={true} />
   }
 
   return (
@@ -796,8 +794,29 @@ const Shipments = () => {
         </Paper>
       )}
 
-      <DataTable
-        columns={[
+      <Box sx={{ position: 'relative' }}>
+        {loading && shipments.length > 0 && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(255, 255, 255, 0.8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 10,
+              borderRadius: 2,
+              backdropFilter: 'blur(2px)',
+            }}
+          >
+            <CircularProgress />
+          </Box>
+        )}
+        <DataTable
+          columns={[
           {
             field: 'select',
             headerName: '',
@@ -937,13 +956,14 @@ const Shipments = () => {
           },
         ]}
         data={shipments}
-        loading={loading}
+        loading={loading && shipments.length === 0}
         onRowClick={handleView}
         searchable
         exportable
         onExport={handleExportExcel}
         onRefresh={fetchShipments}
       />
+      </Box>
 
       {/* Create/Edit Dialog */}
       <FormDialog

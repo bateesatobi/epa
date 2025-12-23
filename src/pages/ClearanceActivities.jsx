@@ -36,6 +36,7 @@ import { clearanceActivitiesAPI } from '../services/api'
 import { format } from 'date-fns'
 import FormDialog from '../components/FormDialog'
 import FormTextField from '../components/FormTextField'
+import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 import {
   showSuccessAlert,
   showErrorAlert,
@@ -256,8 +257,15 @@ const ClearanceActivities = () => {
     setActionMenu({ anchorEl: null, activity: null })
   }
 
+  if (loading && activities.length === 0) {
+    return <PageSkeleton showHeader={true} showTable={true} />
+  }
+
   return (
     <Box>
+      {loading && activities.length > 0 && (
+        <LoadingOverlay message="Refreshing activities..." />
+      )}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Box>
           <Typography variant="h4" fontWeight="bold" gutterBottom>

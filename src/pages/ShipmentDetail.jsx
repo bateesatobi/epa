@@ -48,6 +48,7 @@ import { format, formatDistanceToNow } from 'date-fns'
 import { shipmentsAPI, complianceAPI, clearanceActivitiesAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { toast } from 'react-toastify'
+import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 import FormDialog from '../components/FormDialog'
 import FormSelect from '../components/FormSelect'
 import FormTextField from '../components/FormTextField'
@@ -370,12 +371,8 @@ const ShipmentDetail = () => {
     }
   }, [shipment, activityAssignments, clearanceHistory, clearanceActivities])
 
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress />
-      </Box>
-    )
+  if (loading && !shipment) {
+    return <PageSkeleton showHeader={true} showTable={false} />
   }
 
   if (error || !shipment) {

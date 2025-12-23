@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Grid,
@@ -9,33 +9,27 @@ import {
   LinearProgress,
   Chip,
   IconButton,
-  Menu,
-  MenuItem,
   Avatar,
   List,
   ListItem,
   ListItemText,
   ListItemAvatar,
   Divider,
-  Paper,
   Stack,
   Tooltip,
+  Autocomplete,
+  TextField,
+  Paper,
+  Button,
+  CircularProgress,
+  Skeleton,
 } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import {
   LocalShipping,
   TrendingUp,
   CheckCircle,
-  Schedule,
-  Error,
   Warning,
-  AttachMoney,
-  People,
-  Assessment,
-  Notifications,
-  MoreVert,
-  ArrowUpward,
-  ArrowDownward,
   Refresh,
   PendingActions,
   DirectionsBoatFilled,
@@ -44,17 +38,19 @@ import {
   Insights,
   PeopleAlt,
   DonutLarge,
+  Business,
+  FilterList,
+  Clear,
+  Assessment,
+  Inbox,
+  HourglassEmpty,
 } from '@mui/icons-material'
-import { reportsAPI, shipmentsAPI, usersAPI } from '../services/api'
+import { reportsAPI, shipmentsAPI, clientsAPI } from '../services/api'
 import { toast } from 'react-toastify'
 import {
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
-  LineChart,
-  Line,
   AreaChart,
   Area,
   XAxis,
@@ -64,68 +60,102 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
-import { format, subDays, startOfDay } from 'date-fns'
+import { format } from 'date-fns'
 
-const StatCard = ({ title, value, icon, color, subtitle, trend, onClick }) => (
+const StatCard = ({ title, value, icon, color, subtitle, trend, onClick, loading, description }) => (
   <Card
     sx={{
       height: '100%',
-      background: `linear-gradient(135deg, ${alpha(color === 'primary' ? '#1976d2' : color === 'success' ? '#2e7d32' : color === 'warning' ? '#ed6c02' : color === 'error' ? '#d32f2f' : '#2196f3', 0.1)} 0%, ${alpha(color === 'primary' ? '#1976d2' : color === 'success' ? '#2e7d32' : color === 'warning' ? '#ed6c02' : color === 'error' ? '#d32f2f' : '#2196f3', 0.05)} 100%)`,
-      border: `1px solid ${alpha(color === 'primary' ? '#1976d2' : color === 'success' ? '#2e7d32' : color === 'warning' ? '#ed6c02' : color === 'error' ? '#d32f2f' : '#2196f3', 0.2)}`,
-      transition: 'all 0.3s ease',
+      background: `linear-gradient(135deg, ${alpha(color === 'primary' ? '#1976d2' : color === 'success' ? '#2e7d32' : color === 'warning' ? '#ed6c02' : color === 'error' ? '#d32f2f' : '#2196f3', 0.12)} 0%, ${alpha(color === 'primary' ? '#1976d2' : color === 'success' ? '#2e7d32' : color === 'warning' ? '#ed6c02' : color === 'error' ? '#d32f2f' : '#2196f3', 0.04)} 100%)`,
+      border: `1px solid ${alpha(color === 'primary' ? '#1976d2' : color === 'success' ? '#2e7d32' : color === 'warning' ? '#ed6c02' : color === 'error' ? '#d32f2f' : '#2196f3', 0.25)}`,
+      borderRadius: 3,
+      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       cursor: onClick ? 'pointer' : 'default',
-      '&:hover': onClick ? {
-        transform: 'translateY(-4px)',
-        boxShadow: 6,
+      position: 'relative',
+      overflow: 'hidden',
+      opacity: loading ? 0.7 : 1,
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        height: '4px',
+        background: `linear-gradient(90deg, ${color === 'primary' ? '#1976d2' : color === 'success' ? '#2e7d32' : color === 'warning' ? '#ed6c02' : color === 'error' ? '#d32f2f' : '#2196f3'}, ${alpha(color === 'primary' ? '#1976d2' : color === 'success' ? '#2e7d32' : color === 'warning' ? '#ed6c02' : color === 'error' ? '#d32f2f' : '#2196f3', 0.5)})`,
+      },
+      '&:hover': onClick && !loading ? {
+        transform: 'translateY(-6px)',
+        boxShadow: `0 12px 24px ${alpha(color === 'primary' ? '#1976d2' : color === 'success' ? '#2e7d32' : color === 'warning' ? '#ed6c02' : color === 'error' ? '#d32f2f' : '#2196f3', 0.25)}`,
       } : {},
     }}
     onClick={onClick}
   >
-    <CardContent>
-      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-        <Box>
-          <Typography color="textSecondary" gutterBottom variant="body2" fontWeight="medium">
-            {title}
-          </Typography>
-          <Typography variant="h3" component="div" fontWeight="bold" sx={{ mb: 0.5 }}>
-            {value}
-          </Typography>
-          {subtitle && (
-            <Typography variant="body2" color="textSecondary">
-              {subtitle}
-            </Typography>
-          )}
-          {trend && (
-            <Box display="flex" alignItems="center" sx={{ mt: 1 }}>
-              {trend > 0 ? (
-                <ArrowUpward sx={{ fontSize: 16, color: 'success.main', mr: 0.5 }} />
-              ) : trend < 0 ? (
-                <ArrowDownward sx={{ fontSize: 16, color: 'error.main', mr: 0.5 }} />
-              ) : null}
-              <Typography
-                variant="caption"
-                color={trend > 0 ? 'success.main' : trend < 0 ? 'error.main' : 'text.secondary'}
-                fontWeight="medium"
+    <CardContent sx={{ p: 3 }}>
+      {loading ? (
+        <Box display="flex" alignItems="center" justifyContent="center" sx={{ minHeight: 100 }}>
+          <CircularProgress size={32} sx={{ color: `${color}.main` }} />
+        </Box>
+      ) : (
+        <>
+          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+            <Box sx={{ flex: 1 }}>
+              <Typography 
+                color="textSecondary" 
+                gutterBottom 
+                variant="body2" 
+                fontWeight={600}
+                sx={{ textTransform: 'uppercase', letterSpacing: 0.5, fontSize: '0.75rem', mb: 1 }}
               >
-                {Math.abs(trend)}% vs last period
+                {title}
               </Typography>
+              <Typography 
+                variant="h3" 
+                component="div" 
+                fontWeight="bold" 
+                sx={{ mb: 0.5, lineHeight: 1.2 }}
+              >
+                {value}
+              </Typography>
+              {subtitle && (
+                <Typography variant="body2" color="textSecondary" sx={{ mt: 1, fontSize: '0.875rem' }}>
+                  {subtitle}
+                </Typography>
+              )}
+              {description && (
+                <Tooltip title={description} arrow placement="top">
+                  <Typography 
+                    variant="caption" 
+                    color="textSecondary" 
+                    sx={{ 
+                      mt: 0.5, 
+                      fontSize: '0.7rem',
+                      opacity: 0.7,
+                      display: 'block',
+                      cursor: 'help'
+                    }}
+                  >
+                    ℹ️ What does this mean?
+                  </Typography>
+                </Tooltip>
+              )}
             </Box>
-          )}
-        </Box>
-        <Box
-          sx={{
-            backgroundColor: `${color}.main`,
-            borderRadius: 2,
-            p: 1.5,
-            color: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {icon}
-        </Box>
-      </Box>
+            <Box
+              sx={{
+                backgroundColor: alpha(color === 'primary' ? '#1976d2' : color === 'success' ? '#2e7d32' : color === 'warning' ? '#ed6c02' : color === 'error' ? '#d32f2f' : '#2196f3', 0.15),
+                borderRadius: 2.5,
+                p: 1.5,
+                color: `${color}.main`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                ml: 2,
+              }}
+            >
+              {icon}
+            </Box>
+          </Box>
+        </>
+      )}
     </CardContent>
   </Card>
 )
@@ -135,22 +165,23 @@ const SecondaryStatCard = ({ label, value, color, icon }) => (
     sx={{
       height: '100%',
       borderRadius: 3,
-      border: '1px solid rgba(25, 118, 210, 0.08)',
-      background: 'linear-gradient(135deg, rgba(8, 24, 68, 0.03) 0%, rgba(8, 24, 68, 0.06) 100%)',
-      transition: 'transform 0.25s ease, box-shadow 0.25s ease',
+      border: '1px solid rgba(25, 118, 210, 0.1)',
+      background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%)',
+      transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
       '&:hover': {
         transform: 'translateY(-4px)',
-        boxShadow: '0 18px 30px rgba(12, 38, 92, 0.16)',
+        boxShadow: '0 12px 24px rgba(12, 38, 92, 0.12)',
+        borderColor: alpha(color || '#1976d2', 0.3),
       },
     }}
   >
-    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+    <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 2.5 }}>
       <Box
         sx={{
-          width: 46,
-          height: 46,
-          borderRadius: 2,
-          background: alpha(color || '#1976d2', 0.15),
+          width: 52,
+          height: 52,
+          borderRadius: 2.5,
+          background: alpha(color || '#1976d2', 0.12),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -159,8 +190,8 @@ const SecondaryStatCard = ({ label, value, color, icon }) => (
       >
         {icon}
       </Box>
-      <Box>
-        <Typography variant="body2" color="textSecondary" gutterBottom>
+      <Box sx={{ flex: 1 }}>
+        <Typography variant="body2" color="textSecondary" gutterBottom fontWeight={500}>
           {label}
         </Typography>
         <Typography variant="h4" fontWeight="bold" color={color ? undefined : 'text.primary'}>
@@ -182,6 +213,15 @@ const Dashboard = () => {
   const [shipments, setShipments] = useState([])
   const [alerts, setAlerts] = useState([])
   const [refreshKey, setRefreshKey] = useState(0)
+  const [selectedClient, setSelectedClient] = useState(null)
+  const [clients, setClients] = useState([])
+  const [clientsLoading, setClientsLoading] = useState(false)
+  const [isFiltering, setIsFiltering] = useState(false)
+
+  // Fetch clients on mount
+  useEffect(() => {
+    fetchClients()
+  }, [])
 
   useEffect(() => {
     fetchDashboardData()
@@ -189,11 +229,28 @@ const Dashboard = () => {
       fetchDashboardData()
     }, 30000) // Refresh every 30 seconds
     return () => clearInterval(interval)
-  }, [refreshKey])
+  }, [refreshKey, selectedClient])
+
+  const fetchClients = async () => {
+    try {
+      setClientsLoading(true)
+      const data = await clientsAPI.list({ status: 'approved', limit: 1000 })
+      setClients(data.items || [])
+    } catch (error) {
+      console.error('Failed to load clients:', error)
+      toast.error('Failed to load clients')
+    } finally {
+      setClientsLoading(false)
+    }
+  }
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true)
+      setIsFiltering(!!selectedClient)
+      const clientId = selectedClient?.id || null
+      const params = clientId ? { client_id: clientId } : {}
+      
       const [
         kpisData,
         activityData,
@@ -203,13 +260,13 @@ const Dashboard = () => {
         shipmentsData,
         alertsData,
       ] = await Promise.all([
-        reportsAPI.getKPIs(),
-        reportsAPI.getActivityAnalytics(),
-        reportsAPI.getFieldStaffAnalytics(),
-        reportsAPI.getOverdueAnalytics(),
-        reportsAPI.getTimelineAnalytics(7), // Last 7 days for dashboard
-        shipmentsAPI.list({ limit: 10 }),
-        reportsAPI.getControlRoomAlerts(),
+        reportsAPI.getKPIs(params),
+        reportsAPI.getActivityAnalytics(params),
+        reportsAPI.getFieldStaffAnalytics(params),
+        reportsAPI.getOverdueAnalytics(params),
+        reportsAPI.getTimelineAnalytics(30, params),
+        shipmentsAPI.list({ limit: 10, ...(clientId && { client_id: clientId }) }),
+        reportsAPI.getControlRoomAlerts(params),
       ])
       setKpis(kpisData)
       setActivityAnalytics(activityData)
@@ -223,6 +280,7 @@ const Dashboard = () => {
       console.error(error)
     } finally {
       setLoading(false)
+      setIsFiltering(false)
     }
   }
 
@@ -231,13 +289,22 @@ const Dashboard = () => {
     toast.info('Refreshing data...')
   }
 
-  if (loading && !kpis) {
-    return (
-      <Box>
-        <LinearProgress />
-      </Box>
-    )
+  const handleClientChange = (event, newValue) => {
+    setSelectedClient(newValue)
+    setIsFiltering(true)
+    setRefreshKey(prev => prev + 1)
   }
+
+  const clearClientFilter = () => {
+    setSelectedClient(null)
+    setRefreshKey(prev => prev + 1)
+  }
+
+  // Check if client has no data
+  const hasNoData = selectedClient && kpis && kpis.total_shipments === 0 && !loading
+
+  // Show skeleton loader only on initial load, not on refresh
+  const isInitialLoad = loading && !kpis
 
   // Activity status distribution
   const totalPending = activityAnalytics?.activities?.reduce((sum, a) => sum + (a.pending || 0), 0) || 0
@@ -252,12 +319,12 @@ const Dashboard = () => {
 
   const completionRate = kpis?.completion_rate || 0
 
-  // Real timeline data from API
-  const weeklyData = timelineAnalytics?.timeline?.map((item) => {
+  // Real timeline data from API - Monthly view
+  const monthlyData = timelineAnalytics?.timeline?.map((item) => {
     const date = new Date(item.date)
-    const dayName = format(date, 'EEE')
+    const dayLabel = format(date, 'MMM dd')
     return {
-      day: dayName,
+      day: dayLabel,
       shipments: item.shipments || 0,
       assignments: item.assignments || 0,
       completed: item.completed || 0,
@@ -266,83 +333,286 @@ const Dashboard = () => {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Box>
-          <Stack direction="row" alignItems="center" spacing={1.5}>
-            <Box
-              sx={{
-                width: 44,
-                height: 44,
-                borderRadius: 2,
-                background: 'linear-gradient(135deg, rgba(25,118,210,0.18) 0%, rgba(8,38,90,0.3) 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'primary.main',
-                boxShadow: 'inset 0 2px 6px rgba(12,42,104,0.25)',
-              }}
-            >
-              <Insights sx={{ fontSize: 26 }} />
-            </Box>
+      {/* Loading Indicator when filtering */}
+      {isFiltering && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2,
+            mb: 2,
+            background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.1) 0%, rgba(25, 118, 210, 0.05) 100%)',
+            borderRadius: 2,
+            border: '1px solid rgba(25, 118, 210, 0.2)',
+          }}
+        >
+          <Stack direction="row" alignItems="center" spacing={2}>
+            <CircularProgress size={24} sx={{ color: 'primary.main' }} />
             <Box>
-              <Typography variant="h4" gutterBottom fontWeight="bold">
-                Cockpit Overview
+              <Typography variant="body1" fontWeight={600} color="primary.main">
+                Loading client data...
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Real-time insights and performance metrics
+              <Typography variant="caption" color="text.secondary">
+                Fetching analytics for {selectedClient?.company_name || selectedClient?.name}
               </Typography>
             </Box>
           </Stack>
+          <LinearProgress 
+            sx={{ 
+              mt: 1.5, 
+              height: 4, 
+              borderRadius: 2,
+              backgroundColor: 'rgba(25, 118, 210, 0.1)',
+            }} 
+          />
+        </Paper>
+      )}
+
+      {/* Empty State when client has no data */}
+      {hasNoData && (
+        <Paper
+          elevation={0}
+          sx={{
+            p: 4,
+            mb: 3,
+            textAlign: 'center',
+            background: 'linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.9) 100%)',
+            borderRadius: 3,
+            border: '2px dashed rgba(25, 118, 210, 0.2)',
+          }}
+        >
+          <Box
+            sx={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.1) 0%, rgba(25, 118, 210, 0.05) 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 2,
+            }}
+          >
+            <Inbox sx={{ fontSize: 40, color: 'primary.main', opacity: 0.7 }} />
+          </Box>
+          <Typography variant="h5" fontWeight="bold" gutterBottom>
+            No Data Available
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 2, maxWidth: 500, mx: 'auto' }}>
+            {selectedClient?.company_name || selectedClient?.name} doesn't have any consignments or activity data yet.
+          </Typography>
+          <Button
+            variant="outlined"
+            startIcon={<Clear />}
+            onClick={clearClientFilter}
+            sx={{ mt: 1 }}
+          >
+            View All Clients
+          </Button>
+        </Paper>
+      )}
+
+      {/* Header Section with Client Filter */}
+      <Paper
+        elevation={0}
+        sx={{
+          p: 3,
+          mb: 3,
+          background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.08) 0%, rgba(25, 118, 210, 0.02) 100%)',
+          borderRadius: 3,
+          border: '1px solid rgba(25, 118, 210, 0.1)',
+        }}
+      >
+        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2}>
+          <Box>
+            <Stack direction="row" alignItems="center" spacing={2}>
+              <Box
+                sx={{
+                  width: 56,
+                  height: 56,
+                  borderRadius: 2.5,
+                  background: 'linear-gradient(135deg, rgba(25,118,210,0.2) 0%, rgba(8,38,90,0.3) 100%)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: 'primary.main',
+                  boxShadow: '0 4px 12px rgba(25,118,210,0.2)',
+                }}
+              >
+                <Insights sx={{ fontSize: 32 }} />
+              </Box>
+              <Box>
+                <Typography variant="h4" gutterBottom fontWeight="bold" sx={{ mb: 0.5 }}>
+                  Cockpit Overview
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {selectedClient 
+                    ? `Viewing data for ${selectedClient.company_name || selectedClient.name}`
+                    : 'Real-time insights and performance metrics across all clients'
+                  }
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
+          
+          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
+            {/* Client Filter */}
+            <Autocomplete
+              options={clients}
+              getOptionLabel={(option) => option.company_name || option.name || ''}
+              value={selectedClient}
+              onChange={handleClientChange}
+              loading={clientsLoading}
+              sx={{ minWidth: 300 }}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Filter by Client"
+                  placeholder="All Clients"
+                  InputProps={{
+                    ...params.InputProps,
+                    startAdornment: (
+                      <>
+                        <FilterList sx={{ mr: 1, color: 'text.secondary' }} />
+                        {params.InputProps.startAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <Box component="li" {...props} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1.5 }}>
+                  <Business sx={{ color: 'text.secondary', fontSize: 20 }} />
+                  <Box>
+                    <Typography variant="body1" fontWeight={500}>
+                      {option.company_name || option.name}
+                    </Typography>
+                    {option.email && (
+                      <Typography variant="caption" color="text.secondary">
+                        {option.email}
+                      </Typography>
+                    )}
+                  </Box>
+                </Box>
+              )}
+            />
+            
+            {selectedClient && (
+              <Button
+                variant="outlined"
+                size="small"
+                startIcon={<Clear />}
+                onClick={clearClientFilter}
+                sx={{ minWidth: 'auto' }}
+              >
+                Clear Filter
+              </Button>
+            )}
+            
+            <Tooltip title="Refresh analytics" arrow>
+              <IconButton 
+                onClick={handleRefresh} 
+                color="primary" 
+                sx={{ 
+                  boxShadow: '0 4px 12px rgba(25,118,210,0.2)',
+                  '&:hover': {
+                    boxShadow: '0 6px 16px rgba(25,118,210,0.3)',
+                  }
+                }}
+              >
+                <Refresh />
+              </IconButton>
+            </Tooltip>
+          </Stack>
         </Box>
-        <Tooltip title="Refresh analytics" arrow>
-          <IconButton onClick={handleRefresh} color="primary" sx={{ boxShadow: '0 8px 20px rgba(25,118,210,0.2)' }}>
-            <Refresh />
-          </IconButton>
-        </Tooltip>
-      </Box>
+      </Paper>
 
       {/* Key Performance Indicators */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      {!hasNoData && (
+        <>
+      {/* Section Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Assessment color="primary" />
+          Consignment Overview
+        </Typography>
+      </Box>
+      
+      <Grid container spacing={3} sx={{ mb: 4, opacity: loading ? 0.6 : 1, transition: 'opacity 0.3s ease' }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Consignments"
             value={kpis?.total_shipments || 0}
-            icon={<LocalShipping sx={{ fontSize: 32 }} />}
+            icon={<LocalShipping sx={{ fontSize: 28 }} />}
             color="primary"
-            trend={5.2}
+            loading={isFiltering}
+            description="The total number of consignments in the system. This includes all consignments regardless of their current status or stage in the clearance process."
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Completion Rate"
             value={`${completionRate.toFixed(1)}%`}
-            icon={<CheckCircle sx={{ fontSize: 32 }} />}
+            icon={<CheckCircle sx={{ fontSize: 28 }} />}
             color="success"
             subtitle={`${kpis?.completed_assignments || 0} of ${kpis?.total_assignments || 0} assignments`}
+            loading={isFiltering}
+            description="The percentage of clearance activity assignments that have been successfully completed. A higher rate indicates better operational efficiency and workflow management."
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="In Progress"
             value={kpis?.in_transit || 0}
-            icon={<TrendingUp sx={{ fontSize: 32 }} />}
+            icon={<TrendingUp sx={{ fontSize: 28 }} />}
             color="info"
             subtitle="Active activities"
+            loading={isFiltering}
+            description="The number of consignments currently undergoing active clearance activities. This represents your current workload and operational capacity utilization."
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Overdue Consignments"
             value={kpis?.overdue_shipments || 0}
-            icon={<Warning sx={{ fontSize: 32 }} />}
+            icon={<Warning sx={{ fontSize: 28 }} />}
             color={kpis?.overdue_shipments > 0 ? 'error' : 'success'}
             subtitle="Exceeding 9 days"
+            loading={isFiltering}
+            description="Consignments that have been in the system for more than 9 days without reaching release/exit status. These require immediate attention to prevent service delays."
           />
         </Grid>
       </Grid>
 
-      {/* Secondary Metrics */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      {/* Section Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <TaskAlt color="primary" />
+          Activity Status
+        </Typography>
+      </Box>
+      
+      <Grid container spacing={3} sx={{ mb: 4, position: 'relative' }}>
+        {/* Subtle loading overlay */}
+        {loading && !isInitialLoad && (
+          <Box
+            sx={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(255, 255, 255, 0.7)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 1,
+              borderRadius: 3,
+            }}
+          >
+            <CircularProgress size={40} />
+          </Box>
+        )}
         <Grid item xs={12} sm={6} md={3}>
           <SecondaryStatCard
             label="Pending Activities"
@@ -377,19 +647,27 @@ const Dashboard = () => {
         </Grid>
       </Grid>
 
+      {/* Section Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Timeline color="primary" />
+          Analytics & Trends
+        </Typography>
+      </Box>
+      
       {/* Charts Row */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent>
-              <Stack direction="row" alignItems="center" spacing={1}>
+          <Card sx={{ borderRadius: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+            <CardContent sx={{ p: 3 }}>
+              <Stack direction="row" alignItems="center" spacing={1.5} mb={2}>
                 <Timeline color="primary" />
-                <Typography variant="h6" gutterBottom fontWeight="bold">
-                  Last 7 Days Activity Trends
+                <Typography variant="h6" fontWeight="bold">
+                  Monthly Activity Trends
                 </Typography>
               </Stack>
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={weeklyData}>
+              <ResponsiveContainer width="100%" height={320}>
+                <AreaChart data={monthlyData}>
                   <defs>
                     <linearGradient id="colorShipments" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#1976d2" stopOpacity={0.8}/>
@@ -404,14 +682,21 @@ const Dashboard = () => {
                       <stop offset="95%" stopColor="#2e7d32" stopOpacity={0}/>
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="day" />
-                  <YAxis />
-                  <RechartsTooltip />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+                  <XAxis dataKey="day" stroke="#666" />
+                  <YAxis stroke="#666" />
+                  <RechartsTooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      borderRadius: 8,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }}
+                  />
                   <Legend />
-                  <Area type="monotone" dataKey="shipments" stroke="#1976d2" fillOpacity={1} fill="url(#colorShipments)" name="New Shipments" />
-                  <Area type="monotone" dataKey="assignments" stroke="#0288d1" fillOpacity={1} fill="url(#colorAssignments)" name="New Assignments" />
-                  <Area type="monotone" dataKey="completed" stroke="#2e7d32" fillOpacity={1} fill="url(#colorCompleted)" name="Completed Activities" />
+                  <Area type="monotone" dataKey="shipments" stroke="#1976d2" fillOpacity={1} fill="url(#colorShipments)" name="New Consignments" strokeWidth={2} />
+                  <Area type="monotone" dataKey="assignments" stroke="#0288d1" fillOpacity={1} fill="url(#colorAssignments)" name="New Assignments" strokeWidth={2} />
+                  <Area type="monotone" dataKey="completed" stroke="#2e7d32" fillOpacity={1} fill="url(#colorCompleted)" name="Completed Activities" strokeWidth={2} />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
@@ -419,13 +704,13 @@ const Dashboard = () => {
         </Grid>
 
         <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Card sx={{ borderRadius: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2 }}>
                 <DonutLarge color="primary" />
                 Activity Status Distribution
               </Typography>
-              <ResponsiveContainer width="100%" height={300}>
+              <ResponsiveContainer width="100%" height={320}>
                 <PieChart>
                   <Pie
                     data={activityStatusData}
@@ -433,7 +718,7 @@ const Dashboard = () => {
                     cy="50%"
                     labelLine={false}
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
+                    outerRadius={90}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -441,7 +726,14 @@ const Dashboard = () => {
                       <Cell key={`cell-${index}`} fill={entry.color} />
                     ))}
                   </Pie>
-                  <RechartsTooltip />
+                  <RechartsTooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                      border: '1px solid rgba(0,0,0,0.1)',
+                      borderRadius: 8,
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }}
+                  />
                 </PieChart>
               </ResponsiveContainer>
             </CardContent>
@@ -449,31 +741,39 @@ const Dashboard = () => {
         </Grid>
       </Grid>
 
+      {/* Section Header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h5" fontWeight="bold" gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <DirectionsBoatFilled color="primary" />
+          Recent Activity & Performance
+        </Typography>
+      </Box>
+      
       {/* Recent Activity and Quick Actions */}
       <Grid container spacing={3}>
         <Grid item xs={12} md={8}>
-          <Card>
-            <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Card sx={{ borderRadius: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+            <CardContent sx={{ p: 3 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={2.5}>
+                <Typography variant="h6" fontWeight="bold" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
                   <DirectionsBoatFilled color="primary" />
                   Recent Consignments
                 </Typography>
                 <Chip label={`${shipments.length} active`} size="small" color="primary" />
               </Box>
-              <List>
+              <List sx={{ p: 0 }}>
                 {shipments.slice(0, 5).map((shipment, index) => (
                   <React.Fragment key={shipment.id}>
                     <ListItem
                       onClick={() => navigate(`/shipments/${shipment.id}`)}
                       sx={{
-                        borderRadius: 1,
+                        borderRadius: 2,
                         mb: 1,
-                        backgroundColor: alpha('#1976d2', 0.02),
+                        backgroundColor: alpha('#1976d2', 0.03),
                         cursor: 'pointer',
                         transition: 'all 0.2s ease',
                         '&:hover': {
-                          backgroundColor: alpha('#1976d2', 0.08),
+                          backgroundColor: alpha('#1976d2', 0.1),
                           transform: 'translateX(4px)',
                         },
                       }}
@@ -511,7 +811,7 @@ const Dashboard = () => {
                           </Box>
                         }
                         secondary={
-                          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
+                          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" sx={{ mt: 0.5 }}>
                             <Typography variant="body2" color="text.secondary">
                               {shipment.origin} → {shipment.destination}
                             </Typography>
@@ -530,6 +830,13 @@ const Dashboard = () => {
                     {index < shipments.length - 1 && <Divider />}
                   </React.Fragment>
                 ))}
+                {shipments.length === 0 && (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No consignments found
+                    </Typography>
+                  </Box>
+                )}
               </List>
             </CardContent>
           </Card>
@@ -537,15 +844,15 @@ const Dashboard = () => {
 
         <Grid item xs={12} md={4}>
           <Stack spacing={3}>
-            <Card>
-              <CardContent>
-                <Typography variant="h6" gutterBottom fontWeight="bold">
+            <Card sx={{ borderRadius: 3, boxShadow: '0 2px 8px rgba(0,0,0,0.08)' }}>
+              <CardContent sx={{ p: 3 }}>
+                <Typography variant="h6" gutterBottom fontWeight="bold" sx={{ mb: 3 }}>
                   Performance Metrics
                 </Typography>
                 <Box sx={{ mt: 2 }}>
                   <Box sx={{ mb: 3 }}>
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography variant="body2">Activity Completion Rate</Typography>
+                    <Box display="flex" justifyContent="space-between" mb={1.5}>
+                      <Typography variant="body2" fontWeight={500}>Activity Completion Rate</Typography>
                       <Typography variant="body2" fontWeight="bold">
                         {completionRate.toFixed(1)}%
                       </Typography>
@@ -554,18 +861,19 @@ const Dashboard = () => {
                       variant="determinate"
                       value={completionRate}
                       sx={{
-                        height: 8,
-                        borderRadius: 4,
+                        height: 10,
+                        borderRadius: 5,
                         backgroundColor: alpha('#1976d2', 0.1),
                         '& .MuiLinearProgress-bar': {
                           backgroundColor: completionRate >= 80 ? 'success.main' : completionRate >= 60 ? 'warning.main' : 'error.main',
+                          borderRadius: 5,
                         },
                       }}
                     />
                   </Box>
                   <Box sx={{ mb: 3 }}>
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography variant="body2">Field Staff Performance</Typography>
+                    <Box display="flex" justifyContent="space-between" mb={1.5}>
+                      <Typography variant="body2" fontWeight={500}>Field Staff Performance</Typography>
                       <Typography variant="body2" fontWeight="bold">
                         {fieldStaffAnalytics?.avg_completion_rate?.toFixed(1) || 0}%
                       </Typography>
@@ -574,18 +882,19 @@ const Dashboard = () => {
                       variant="determinate"
                       value={fieldStaffAnalytics?.avg_completion_rate || 0}
                       sx={{
-                        height: 8,
-                        borderRadius: 4,
+                        height: 10,
+                        borderRadius: 5,
                         backgroundColor: alpha('#1976d2', 0.1),
                         '& .MuiLinearProgress-bar': {
                           backgroundColor: (fieldStaffAnalytics?.avg_completion_rate || 0) >= 80 ? 'success.main' : 'info.main',
+                          borderRadius: 5,
                         },
                       }}
                     />
                   </Box>
                   <Box>
-                    <Box display="flex" justifyContent="space-between" mb={1}>
-                      <Typography variant="body2">Overdue Consignments</Typography>
+                    <Box display="flex" justifyContent="space-between" mb={1.5}>
+                      <Typography variant="body2" fontWeight={500}>Overdue Consignments</Typography>
                       <Typography variant="body2" fontWeight="bold" color={kpis?.overdue_shipments > 0 ? 'error.main' : 'success.main'}>
                         {kpis?.overdue_shipments || 0}
                       </Typography>
@@ -594,11 +903,12 @@ const Dashboard = () => {
                       variant="determinate"
                       value={kpis?.overdue_shipments > 0 ? 100 : 0}
                       sx={{
-                        height: 8,
-                        borderRadius: 4,
+                        height: 10,
+                        borderRadius: 5,
                         backgroundColor: alpha('#1976d2', 0.1),
                         '& .MuiLinearProgress-bar': {
                           backgroundColor: kpis?.overdue_shipments > 0 ? 'error.main' : 'success.main',
+                          borderRadius: 5,
                         },
                       }}
                     />
@@ -607,9 +917,14 @@ const Dashboard = () => {
               </CardContent>
             </Card>
 
-            <Card sx={{ background: 'linear-gradient(135deg, rgba(21,101,192,0.12) 0%, rgba(21,101,192,0.28) 100%)' }}>
-              <CardContent>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Card sx={{ 
+              borderRadius: 3, 
+              boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+              background: 'linear-gradient(135deg, rgba(21,101,192,0.1) 0%, rgba(21,101,192,0.05) 100%)',
+              border: '1px solid rgba(21,101,192,0.15)',
+            }}>
+              <CardContent sx={{ p: 3 }}>
+                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2.5}>
                   <Typography variant="h6" fontWeight="bold">
                     Command Center Alerts
                   </Typography>
@@ -634,9 +949,9 @@ const Dashboard = () => {
                           sx={{
                             borderRadius: 2,
                             mb: 1,
-                            backgroundColor: alpha('#1565c0', 0.08),
+                            backgroundColor: alpha('#1565c0', 0.06),
                             '&:hover': {
-                              backgroundColor: alpha('#1565c0', 0.14),
+                              backgroundColor: alpha('#1565c0', 0.12),
                             },
                           }}
                         >
@@ -654,12 +969,12 @@ const Dashboard = () => {
                                 color: 'white',
                               }}
                             >
-                              {severityColor === 'error' ? <Error /> : severityColor === 'warning' ? <Warning /> : <TrendingUp />}
+                              {severityColor === 'error' ? <Warning /> : severityColor === 'warning' ? <Warning /> : <CheckCircle />}
                             </Avatar>
                           </ListItemAvatar>
                           <ListItemText
                             primary={
-                              <Box display="flex" alignItems="center" justifyContent="space-between">
+                              <Box display="flex" alignItems="center" justifyContent="space-between" flexWrap="wrap" gap={1}>
                                 <Typography variant="body1" fontWeight="bold">
                                   {alert.title}
                                 </Typography>
@@ -672,7 +987,7 @@ const Dashboard = () => {
                               </Box>
                             }
                             secondary={
-                              <Typography variant="body2" color="text.secondary">
+                              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                                 {alert.summary}
                               </Typography>
                             }
@@ -681,12 +996,21 @@ const Dashboard = () => {
                       </React.Fragment>
                     )
                   })}
+                  {alerts.length === 0 && (
+                    <Box sx={{ textAlign: 'center', py: 2 }}>
+                      <Typography variant="body2" color="text.secondary">
+                        No alerts at this time
+                      </Typography>
+                    </Box>
+                  )}
                 </List>
               </CardContent>
             </Card>
           </Stack>
         </Grid>
       </Grid>
+        </>
+      )}
     </Box>
   )
 }

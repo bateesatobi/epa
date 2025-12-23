@@ -2,6 +2,7 @@ import axios from 'axios'
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://epa-backend-fxzh.onrender.com'
+  // import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -423,38 +424,38 @@ export const reportsAPI = {
     const response = await api.get('/api/reports/daily', { params: { date } })
     return response.data
   },
-  getKPIs: async () => {
-    const response = await api.get('/api/reports/kpis')
+  getKPIs: async (params = {}) => {
+    const response = await api.get('/api/reports/kpis', { params })
     return response.data
   },
-  getDelayTrends: async (days = 30) => {
+  getDelayTrends: async (days = 30, params = {}) => {
     const response = await api.get('/api/reports/trends/delays', {
-      params: { days },
+      params: { days, ...params },
     })
     return response.data
   },
-  getControlRoomAlerts: async () => {
-    const response = await api.get('/api/reports/control-room/alerts')
+  getControlRoomAlerts: async (params = {}) => {
+    const response = await api.get('/api/reports/control-room/alerts', { params })
     return response.data
   },
   generate: async (data) => {
     const response = await api.post('/api/reports/generate', data)
     return response.data
   },
-  getActivityAnalytics: async () => {
-    const response = await api.get('/api/reports/analytics/activities')
+  getActivityAnalytics: async (params = {}) => {
+    const response = await api.get('/api/reports/analytics/activities', { params })
     return response.data
   },
-  getFieldStaffAnalytics: async () => {
-    const response = await api.get('/api/reports/analytics/field-staff')
+  getFieldStaffAnalytics: async (params = {}) => {
+    const response = await api.get('/api/reports/analytics/field-staff', { params })
     return response.data
   },
-  getOverdueAnalytics: async () => {
-    const response = await api.get('/api/reports/analytics/overdue')
+  getOverdueAnalytics: async (params = {}) => {
+    const response = await api.get('/api/reports/analytics/overdue', { params })
     return response.data
   },
-  getTimelineAnalytics: async (days = 30) => {
-    const response = await api.get('/api/reports/analytics/timeline', { params: { days } })
+  getTimelineAnalytics: async (days = 30, params = {}) => {
+    const response = await api.get('/api/reports/analytics/timeline', { params: { days, ...params } })
     return response.data
   },
 }

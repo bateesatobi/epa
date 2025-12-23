@@ -13,6 +13,8 @@ import {
   Box,
   IconButton,
   Tooltip,
+  Skeleton,
+  CircularProgress,
 } from '@mui/material'
 import {
   Search,
@@ -132,11 +134,15 @@ const DataTable = ({
           </TableHead>
           <TableBody>
             {loading ? (
-              <TableRow>
-                <TableCell colSpan={columns.length} align="center">
-                  Loading...
-                </TableCell>
-              </TableRow>
+              Array.from({ length: rowsPerPage }).map((_, index) => (
+                <TableRow key={`skeleton-${index}`}>
+                  {columns.map((column) => (
+                    <TableCell key={column.field}>
+                      <Skeleton variant="text" width="100%" height={20} />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
             ) : paginatedData.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={columns.length} align="center">

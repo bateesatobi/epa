@@ -39,6 +39,7 @@ import { format } from 'date-fns'
 import FormDialog from '../components/FormDialog'
 import FormTextField from '../components/FormTextField'
 import FormSelect from '../components/FormSelect'
+import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 import {
   showSuccessAlert,
   showErrorAlert,
@@ -248,6 +249,10 @@ const Depots = () => {
     },
   ]
 
+  if (loading && depots.length === 0) {
+    return <PageSkeleton showHeader={true} showTable={true} />
+  }
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -273,7 +278,7 @@ const Depots = () => {
         <DataTable
           columns={columns}
           data={depots}
-          loading={loading}
+          loading={loading && depots.length > 0}
           emptyMessage="No depots found"
         />
       </Paper>
