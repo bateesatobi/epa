@@ -380,7 +380,7 @@ const ShipmentDetail = () => {
       <Box>
         <Button
           startIcon={<ArrowBack />}
-          onClick={() => navigate('/shipments')}
+          onClick={() => navigate(-1)}
           sx={{ mb: 2 }}
         >
           Back to Shipments
@@ -504,7 +504,7 @@ const ShipmentDetail = () => {
           <Stack direction="row" spacing={1.5} flexShrink={0}>
             <Button
               startIcon={<ArrowBack />}
-              onClick={() => navigate('/shipments')}
+              onClick={() => navigate(-1)}
               variant="outlined"
               sx={{ borderRadius: 2 }}
             >

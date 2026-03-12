@@ -46,7 +46,7 @@ const ShipmentClearanceHistoryPage = () => {
           </Typography>
           <Button
             startIcon={<ArrowBack />}
-            onClick={() => navigate('/shipments')}
+            onClick={() => navigate(-1)}
             sx={{ mt: 2 }}
           >
             Back to Shipments
@@ -76,7 +76,7 @@ const ShipmentClearanceHistoryPage = () => {
         <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
           <Button
             startIcon={<ArrowBack />}
-            onClick={() => navigate('/shipments')}
+            onClick={() => navigate(-1)}
             variant="outlined"
             sx={{ borderRadius: 2 }}
           >

@@ -533,7 +533,7 @@ const ComplianceDetail = () => {
   if (!shipment) {
     return (
       <Box>
-        <Button startIcon={<ArrowBack />} onClick={() => navigate('/compliance')} sx={{ mb: 2 }}>
+        <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
           Back to Compliance
         </Button>
         <Alert severity="error">Shipment not found</Alert>
@@ -545,7 +545,7 @@ const ComplianceDetail = () => {
     <Box>
       {/* Header */}
       <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-        <Button startIcon={<ArrowBack />} onClick={() => navigate('/compliance')}>
+        <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)}>
           Back
         </Button>
         <Avatar
