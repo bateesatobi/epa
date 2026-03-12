@@ -30,6 +30,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'react-toastify'
 import { notificationsAPI } from '../services/api'
+import { PageSkeleton } from '../components/LoadingStates'
 
 const tabOptions = [
   { value: 0, label: 'All', icon: <Inbox fontSize="small" /> },
