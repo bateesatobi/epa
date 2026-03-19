@@ -65,7 +65,7 @@ import {
   AreaChart,
 } from 'recharts'
 
-const COLORS = ['#1976d2', '#2e7d32', '#ed6c02', '#d32f2f', '#9c27b0', '#0288d1', '#388e3c']
+const COLORS = ['#01A3DA', '#000000', '#64748B', '#94A3B8', '#CBD5E1', '#E2E8F0', '#F1F5F9']
 
 const Reports = () => {
   const [kpis, setKpis] = useState(null)
@@ -170,9 +170,9 @@ const Reports = () => {
   const totalInProgress = activityAnalytics?.activities?.reduce((sum, a) => sum + (a.in_progress || 0), 0) || 0
   const totalCompleted = activityAnalytics?.activities?.reduce((sum, a) => sum + (a.completed || 0), 0) || 0
   const activityDistributionData = [
-    { name: 'Completed', value: totalCompleted, fill: '#2e7d32' },
-    { name: 'In Progress', value: totalInProgress, fill: '#1976d2' },
-    { name: 'Pending', value: totalPending, fill: '#ed6c02' },
+    { name: 'Completed', value: totalCompleted, fill: '#01A3DA' },
+    { name: 'In Progress', value: totalInProgress, fill: '#000000' },
+    { name: 'Pending', value: totalPending, fill: '#94A3B8' },
   ]
 
   const timelineChartData = timelineAnalytics?.timeline || []
@@ -182,125 +182,130 @@ const Reports = () => {
     .slice(0, 5) || []
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: '#FFFFFF', minHeight: '100vh' }}>
       {/* Header */}
-      <Stack direction="row" spacing={1.5} alignItems="center" justifyContent="space-between" sx={{ mb: 3 }}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Avatar
-            variant="rounded"
-            sx={{
-              width: 48,
-              height: 48,
-              bgcolor: 'info.light',
-              color: 'info.dark',
-              boxShadow: '0 10px 24px rgba(3,169,244,0.25)',
-            }}
-          >
-            <Insights />
-          </Avatar>
-          <Box>
-            <Typography variant="h4" gutterBottom fontWeight="bold" sx={{ mb: 0 }}>
-              Reports & Analytics
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Comprehensive operational insights and performance metrics
-            </Typography>
-          </Box>
-        </Stack>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: '#000', letterSpacing: '-0.02em', mb: 1 }}>
+            Analytics & Reports
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, maxWidth: 600 }}>
+            Monitor logistics throughput, staff performance, and operational bottlenecks across your entire global fleet.
+          </Typography>
+        </Box>
         <Button
           variant="outlined"
           startIcon={<Refresh />}
           onClick={handleRefresh}
+          sx={{ 
+            borderRadius: 2, textTransform: 'none', fontWeight: 600,
+            borderColor: '#EEEEEE', color: '#000', px: 2,
+            '&:hover': { borderColor: '#000', bgcolor: 'transparent' }
+          }}
         >
-          Refresh
+          Refresh Data
         </Button>
-      </Stack>
+      </Box>
 
       {/* KPI Cards */}
-      <Grid container spacing={3} sx={{ mb: 3 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderRadius: 3, boxShadow: 2, background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-            <CardContent>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1 }}>
-                    Total Consignments
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" sx={{ color: 'white' }}>
-                    {kpis?.total_shipments || 0}
-                  </Typography>
-                </Box>
-                <Assessment sx={{ fontSize: 40, color: 'rgba(255,255,255,0.3)' }} />
-              </Stack>
-            </CardContent>
-          </Card>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #F0F0F0', bgcolor: '#FAFAFA' }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Avatar sx={{ bgcolor: 'rgba(1, 163, 218, 0.08)', color: '#01A3DA', borderRadius: 2 }}>
+                <Assessment />
+              </Avatar>
+              <Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Total Missions
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: '#000' }}>
+                  {kpis?.total_shipments || 0}
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderRadius: 3, boxShadow: 2, background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
-            <CardContent>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1 }}>
-                    Completion Rate
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" sx={{ color: 'white' }}>
-                    {kpis?.completion_rate?.toFixed(1) || 0}%
-                  </Typography>
-                </Box>
-                <CheckCircle sx={{ fontSize: 40, color: 'rgba(255,255,255,0.3)' }} />
-              </Stack>
-            </CardContent>
-          </Card>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #F0F0F0', bgcolor: '#FAFAFA' }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Avatar sx={{ bgcolor: 'rgba(0,0,0,0.05)', color: '#000', borderRadius: 2 }}>
+                <CheckCircle />
+              </Avatar>
+              <Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Success Rate
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: '#01A3DA' }}>
+                  {kpis?.completion_rate?.toFixed(1) || 0}%
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderRadius: 3, boxShadow: 2, background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)' }}>
-            <CardContent>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1 }}>
-                    Total Assignments
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" sx={{ color: 'white' }}>
-                    {kpis?.total_assignments || 0}
-                  </Typography>
-                </Box>
-                <Schedule sx={{ fontSize: 40, color: 'rgba(255,255,255,0.3)' }} />
-              </Stack>
-            </CardContent>
-          </Card>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #F0F0F0', bgcolor: '#FAFAFA' }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Avatar sx={{ bgcolor: 'rgba(1, 163, 218, 0.08)', color: '#01A3DA', borderRadius: 2 }}>
+                <Schedule />
+              </Avatar>
+              <Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Assignments
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: '#000' }}>
+                  {kpis?.total_assignments || 0}
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderRadius: 3, boxShadow: 2, background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)' }}>
-            <CardContent>
-              <Stack direction="row" alignItems="center" justifyContent="space-between">
-                <Box>
-                  <Typography variant="body2" sx={{ color: 'rgba(255,255,255,0.8)', mb: 1 }}>
-                    Overdue Shipments
-                  </Typography>
-                  <Typography variant="h4" fontWeight="bold" sx={{ color: 'white' }}>
-                    {kpis?.overdue_shipments || 0}
-                  </Typography>
-                </Box>
-                <Warning sx={{ fontSize: 40, color: 'rgba(255,255,255,0.3)' }} />
-              </Stack>
-            </CardContent>
-          </Card>
+          <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid #F0F0F0', bgcolor: '#FAFAFA' }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Avatar sx={{ bgcolor: 'rgba(0,0,0,0.05)', color: '#000', borderRadius: 2 }}>
+                <Warning />
+              </Avatar>
+              <Box>
+                <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+                  Overdue
+                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 800, color: kpis?.overdue_shipments > 0 ? '#000' : '#01A3DA' }}>
+                  {kpis?.overdue_shipments || 0}
+                </Typography>
+              </Box>
+            </Stack>
+          </Paper>
         </Grid>
       </Grid>
 
       {/* Tabs */}
-      <Paper sx={{ mb: 3, borderRadius: 2 }}>
-        <Tabs value={tabValue} onChange={handleTabChange} variant="scrollable" scrollButtons="auto">
-          <Tab label="Overview" icon={<BarChartIcon />} iconPosition="start" />
-          <Tab label="Activities" icon={<PieChartIcon />} iconPosition="start" />
-          <Tab label="Field Staff" icon={<People />} iconPosition="start" />
-          <Tab label="Timeline" icon={<Timeline />} iconPosition="start" />
-          <Tab label="Overdue" icon={<Warning />} iconPosition="start" />
+      <Box sx={{ mb: 3 }}>
+        <Tabs
+          value={tabValue}
+          onChange={handleTabChange}
+          sx={{ 
+            '& .MuiTabs-indicator': { bgcolor: '#01A3DA', height: 3, borderRadius: '3px 3px 0 0' },
+            '& .MuiTab-root': { 
+              textTransform: 'none', 
+              fontWeight: 600, 
+              fontSize: '0.95rem',
+              color: 'text.secondary',
+              minWidth: 100,
+              '&.Mui-selected': { color: '#000' }
+            }
+          }}
+        >
+          <Tab label="Performance Overview" />
+          <Tab label="Activity Analytics" />
+          <Tab label="Field Force Analysis" />
+          <Tab label="Growth Timeline" />
+          <Tab label="Overdue Watch" />
         </Tabs>
-      </Paper>
+      </Box>
 
       {/* Tab Content */}
       {tabValue === 0 && (
@@ -430,9 +435,9 @@ const Reports = () => {
                     <YAxis dataKey="name" type="category" width={150} />
                     <RechartsTooltip />
                     <Legend />
-                    <Bar dataKey="completed" stackId="a" fill="#2e7d32" name="Completed" />
-                    <Bar dataKey="in_progress" stackId="a" fill="#1976d2" name="In Progress" />
-                    <Bar dataKey="pending" stackId="a" fill="#ed6c02" name="Pending" />
+                    <Bar dataKey="completed" stackId="a" fill="#01A3DA" name="Completed" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="in_progress" stackId="a" fill="#000000" name="In Progress" />
+                    <Bar dataKey="pending" stackId="a" fill="#E2E8F0" name="Pending" />
                   </BarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -634,9 +639,9 @@ const Reports = () => {
                     <YAxis />
                     <RechartsTooltip />
                     <Legend />
-                    <Area type="monotone" dataKey="shipments" stackId="1" stroke="#1976d2" fill="#1976d2" name="Consignments" />
-                    <Area type="monotone" dataKey="assignments" stackId="2" stroke="#2e7d32" fill="#2e7d32" name="Assignments" />
-                    <Area type="monotone" dataKey="completed" stackId="3" stroke="#ed6c02" fill="#ed6c02" name="Completed" />
+                    <Area type="monotone" dataKey="shipments" stackId="1" stroke="#01A3DA" fill="#01A3DA" fillOpacity={0.1} name="Consignments" />
+                    <Area type="monotone" dataKey="assignments" stackId="2" stroke="#000000" fill="#000000" fillOpacity={0.05} name="Assignments" />
+                    <Area type="monotone" dataKey="completed" stackId="3" stroke="#CBD5E1" fill="#CBD5E1" fillOpacity={0.1} name="Completed" />
                   </AreaChart>
                 </ResponsiveContainer>
               </CardContent>

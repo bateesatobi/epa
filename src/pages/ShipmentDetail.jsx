@@ -19,6 +19,8 @@ import {
   ListItemIcon,
   ListItemText,
   Avatar,
+  IconButton,
+  alpha,
 } from '@mui/material'
 import {
   ArrowBack,
@@ -43,9 +45,13 @@ import {
   Done,
   Schedule,
   Edit,
+  ChatBubbleOutline,
+  Reply,
+  DeleteOutline,
+  Send,
 } from '@mui/icons-material'
 import { format, formatDistanceToNow } from 'date-fns'
-import { shipmentsAPI, complianceAPI, clearanceActivitiesAPI } from '../services/api'
+import { shipmentsAPI, complianceAPI, clearanceActivitiesAPI, commentsAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { toast } from 'react-toastify'
 import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
@@ -58,6 +64,7 @@ import {
   showLoadingAlert,
   closeAlert,
 } from '../utils/alerts'
+import ShipmentQueries from '../components/ShipmentQueries'
 
 const STATUS_STEPS = ['pending', 'in_transit', 'at_customs', 'awaiting_release', 'delivered']
 
@@ -98,6 +105,9 @@ const ShipmentDetail = () => {
   const [clearanceHistory, setClearanceHistory] = useState([])
   const [clearanceActivities, setClearanceActivities] = useState([])
   const [activityAssignments, setActivityAssignments] = useState([])
+  const [comments, setComments] = useState([])
+  const [newComment, setNewComment] = useState('')
+  const [replyTo, setReplyTo] = useState(null)
   const [openStatusDialog, setOpenStatusDialog] = useState(false)
   const [selectedActivity, setSelectedActivity] = useState(null)
   const [statusForm, setStatusForm] = useState({
@@ -120,13 +130,22 @@ const ShipmentDetail = () => {
         setRefreshing(true)
       }
 
-      const [shipmentData, timelineData, complianceData, clearanceHistoryData, activitiesData, assignmentsData] = await Promise.all([
+      const [
+        shipmentData, 
+        timelineData, 
+        complianceData, 
+        clearanceHistoryData, 
+        activitiesData, 
+        assignmentsData,
+        commentsData
+      ] = await Promise.all([
         shipmentsAPI.get(shipmentId),
         shipmentsAPI.getTimeline(shipmentId).catch(() => []),
         complianceAPI.getSummary(shipmentId).catch(() => null),
         shipmentsAPI.getClearanceHistory(shipmentId).catch(() => []),
         clearanceActivitiesAPI.list({ is_active: true }).catch(() => []),
         shipmentsAPI.listClearanceActivityAssignments(shipmentId).catch(() => []),
+        commentsAPI.listByShipment(shipmentId).catch(() => []),
       ])
 
       setShipment(shipmentData)
@@ -135,6 +154,7 @@ const ShipmentDetail = () => {
       setClearanceHistory(Array.isArray(clearanceHistoryData) ? clearanceHistoryData : [])
       setClearanceActivities(Array.isArray(activitiesData) ? activitiesData : [])
       setActivityAssignments(Array.isArray(assignmentsData) ? assignmentsData : [])
+      setComments(Array.isArray(commentsData) ? commentsData : [])
       setError(null)
     } catch (err) {
       const message = err.response?.data?.detail || 'Failed to load shipment details'
@@ -211,6 +231,36 @@ const ShipmentDetail = () => {
     }
   }
 
+  const handlePostComment = async () => {
+    if (!newComment.trim() || !shipment) return
+
+    setSubmitting(true)
+    try {
+      await commentsAPI.create(shipment.id, {
+        content: newComment,
+        parent_id: replyTo ? replyTo.id : null
+      })
+      setNewComment('')
+      setReplyTo(null)
+      toast.success('Comment posted')
+      await fetchShipment(false)
+    } catch (error) {
+      toast.error('Failed to post comment')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleDeleteComment = async (commentId) => {
+    try {
+      await commentsAPI.delete(commentId)
+      toast.success('Comment deleted')
+      await fetchShipment(false)
+    } catch (error) {
+      toast.error('Failed to delete comment')
+    }
+  }
+
   // Group history by activity (for progress calculation)
   const groupedHistoryByActivity = useMemo(() => {
     return (clearanceHistory || []).reduce((acc, entry) => {
@@ -283,16 +333,17 @@ const ShipmentDetail = () => {
         completedCount++
       } else if (activityStatus === 'in_progress') {
         inProgressCount++
-        // Continue counting all in-progress activities
       } else {
-        // Stop counting once we hit a not-started or pending activity (activities must be done in order)
+        // Stop counting once we hit a not-started activity
         break
       }
     }
 
     const total = sortedActivities.length
-    // Calculate percentage: include only completed and in-progress activities
-    const percentage = total > 0 ? Math.round(((completedCount + inProgressCount) / total) * 100) : 0
+    // Calculate percentage: 100% for completed, 50% for in-progress
+    const percentage = total > 0 
+      ? Math.round(((completedCount + (inProgressCount * 0.5)) / total) * 100) 
+      : 0
 
     return {
       completed: completedCount,
@@ -460,965 +511,469 @@ const ShipmentDetail = () => {
   const latestSeal = complianceSummary?.latest_seal
 
   return (
-    <Box sx={{ pb: 4 }}>
-      {/* Header Section */}
+    <Box sx={{ pb: 6 }}>
+      {/* Premium Header */}
       <Paper
         elevation={0}
         sx={{
           p: 3,
           mb: 3,
-          borderRadius: 2,
+          borderRadius: 3,
           bgcolor: 'background.paper',
           border: '1px solid',
           borderColor: 'divider',
         }}
       >
-        <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2}>
-          <Stack direction="row" spacing={2} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
-            <Avatar
-              variant="rounded"
-              sx={{
-                width: 56,
-                height: 56,
-                bgcolor: 'primary.main',
-                color: 'white',
-                boxShadow: '0 4px 12px rgba(25,118,210,0.3)',
-              }}
-            >
-              <LocalShipping />
-            </Avatar>
-            <Box sx={{ minWidth: 0, flex: 1 }}>
-              <Typography variant="h5" fontWeight={700} sx={{ mb: 0.5 }}>
-                {shipment.shipment_number}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Shipment Tracking & Details
-              </Typography>
-            </Box>
+        <Stack direction="row" spacing={3} alignItems="center">
+          <Button 
+            startIcon={<ArrowBack />} 
+            onClick={() => navigate(-1)}
+            variant="text"
+            sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
+          >
+            Back
+          </Button>
+          <Avatar
+            variant="rounded"
+            sx={{
+              width: 56,
+              height: 56,
+              bgcolor: 'primary.light',
+              color: 'primary.main',
+              borderRadius: 2,
+            }}
+          >
+            <LocalShipping sx={{ fontSize: 32 }} />
+          </Avatar>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h4" fontWeight={700} color="text.primary">
+              {shipment.shipment_number}
+            </Typography>
+            <Typography variant="body1" color="text.secondary">
+              Shipment Tracking & Governance Cockpit
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={1.5}>
             <Chip
-              label={normaliseStatusLabel(shipment.status)}
-              color={getStatusColor(shipment.status)}
-              sx={{ fontWeight: 600, height: 32 }}
+              label={normaliseStatusLabel(shipment.status).toUpperCase()}
+              sx={{ 
+                fontWeight: 700, 
+                px: 1,
+                bgcolor: shipment.status === 'delivered' ? '#E3F2FD' : '#F8F9FA',
+                color: shipment.status === 'delivered' ? '#01A3DA' : 'text.secondary',
+                border: '1px solid',
+                borderColor: 'divider'
+              }}
             />
-          </Stack>
-          <Stack direction="row" spacing={1.5} flexShrink={0}>
-            <Button
-              startIcon={<ArrowBack />}
-              onClick={() => navigate(-1)}
-              variant="outlined"
-              sx={{ borderRadius: 2 }}
-            >
-              Back
-            </Button>
-            <Tooltip title="Refresh shipment data">
-              <span>
-                <Button
-                  startIcon={<Refresh />}
-                  onClick={() => fetchShipment(false)}
-                  variant="contained"
-                  disabled={refreshing}
-                  sx={{ borderRadius: 2 }}
-                >
-                  {refreshing ? 'Refreshing…' : 'Refresh'}
-                </Button>
-              </span>
+            <Tooltip title="Refresh data">
+              <IconButton 
+                onClick={() => fetchShipment(false)} 
+                disabled={refreshing}
+                sx={{ border: '1px solid', borderColor: 'divider' }}
+              >
+                <Refresh fontSize="small" className={refreshing ? 'rotate-animation' : ''} />
+              </IconButton>
             </Tooltip>
           </Stack>
-        </Box>
+        </Stack>
       </Paper>
 
-      <Grid container spacing={3}>
-        {/* Shipment Overview */}
-        <Grid item xs={12}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3.5,
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              height: '100%',
-            }}
-          >
-            <Box display="flex" alignItems="center" gap={1.5} mb={3}>
-              <Avatar
-                sx={{
-                  width: 40,
-                  height: 40,
-                  bgcolor: 'primary.main',
-                  color: 'white',
-                }}
-              >
-                <LocalShipping fontSize="small" />
-              </Avatar>
-              <Typography variant="h6" fontWeight={700}>
-                Shipment Overview
-              </Typography>
-            </Box>
-
-            {/* Progress Section */}
-            <Box
-              sx={{
-                mb: 4,
-                p: 2.5,
-                borderRadius: 2,
-                bgcolor: 'grey.50',
-                border: '1px solid',
-                borderColor: 'divider',
-              }}
-            >
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
-                <Typography variant="subtitle2" fontWeight={600} color="text.primary">
-                  Overall Progress
-                </Typography>
-                <Typography variant="h6" fontWeight={700} color="primary.main">
-                  {Math.round(progressValue)}%
-                </Typography>
+      {/* Metrics Row - Reduces sidebar congestion */}
+      <Grid container spacing={3} mb={3}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', height: '100%' }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha('#01A3DA', 0.1), color: '#01A3DA' }}>
+                <Timeline />
               </Box>
-              <LinearProgress
-                variant="determinate"
-                value={progressValue}
-                sx={{
-                  height: 10,
-                  borderRadius: 5,
-                  backgroundColor: 'grey.300',
-                  '& .MuiLinearProgress-bar': {
-                    borderRadius: 5,
-                    background: progressData.completed > 0 && progressData.inProgress > 0
-                      ? `linear-gradient(to right, #2e7d32 0%, #2e7d32 ${progressData.completedPercent}%, #0288d1 ${progressData.completedPercent}%, #0288d1 ${progressData.completedPercent + progressData.inProgressPercent}%)`
-                      : progressData.completed > 0
-                      ? '#2e7d32' // Green for completed only
-                      : progressData.inProgress > 0
-                      ? '#0288d1' // Blue for in-progress only
-                      : 'grey.400', // Grey for no progress
-                  },
-                }}
-              />
-              {clearanceActivities.length > 0 && (
-                <Box mt={2}>
-                  <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block' }}>
-                    Clearance Activities: {progressData.completed} completed, {progressData.inProgress} in progress of {progressData.total} total
-                  </Typography>
-                  <Stack direction="row" spacing={0.75} sx={{ flexWrap: 'wrap', gap: 0.75 }}>
-                    {[...clearanceActivities]
-                      .sort((a, b) => (a.priority || 0) - (b.priority || 0))
-                      .slice(0, 6)
-                      .map((activity) => {
-                        const status = getActivityStatus(activity.id)
-                        const isCompleted = status === 'completed'
-                        const isInProgress = status === 'in_progress'
-                        return (
-                          <Chip
-                            key={activity.id}
-                            label={activity.name}
-                            size="small"
-                            color={isCompleted ? 'success' : isInProgress ? 'primary' : 'default'}
-                            variant={isCompleted ? 'filled' : 'outlined'}
-                            sx={{
-                              fontSize: '0.7rem',
-                              height: 24,
-                              fontWeight: isCompleted || isInProgress ? 600 : 400,
-                            }}
-                          />
-                        )
-                      })}
-                    {clearanceActivities.length > 6 && (
-                      <Chip
-                        label={`+${clearanceActivities.length - 6}`}
-                        size="small"
-                        variant="outlined"
-                        sx={{ fontSize: '0.7rem', height: 24 }}
-                      />
-                    )}
-                  </Stack>
-                </Box>
-              )}
-            </Box>
-
-            {/* Details Grid */}
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
-                gap: 2.5,
-              }}
-            >
-              {detailItems.map((item) => (
-                <Box
-                  key={item.label}
-                  sx={{
-                    p: 2,
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      borderColor: 'primary.main',
-                      bgcolor: 'action.hover',
-                    },
-                  }}
-                >
-                  <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                    <Avatar
-                      variant="rounded"
-                      sx={{
-                        width: 36,
-                        height: 36,
-                        bgcolor: 'primary.50',
-                        color: 'primary.main',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {item.icon}
-                    </Avatar>
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
-                        {item.label}
-                      </Typography>
-                      {item.label === 'Status' ? (
-                        <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap">
-                          {item.isActivityStatus ? (
-                            <>
-                              <Chip
-                                label={item.value}
-                                size="small"
-                                color={
-                                  item.activityStatus === 'completed'
-                                    ? 'success'
-                                    : item.activityStatus === 'in_progress'
-                                    ? 'primary'
-                                    : 'warning'
-                                }
-                                sx={{ fontWeight: 600 }}
-                              />
-                              <Chip
-                                label={item.activityStatus === 'completed' ? 'Completed' : item.activityStatus === 'in_progress' ? 'In Progress' : 'Pending'}
-                                size="small"
-                                variant="outlined"
-                                color={
-                                  item.activityStatus === 'completed'
-                                    ? 'success'
-                                    : item.activityStatus === 'in_progress'
-                                    ? 'primary'
-                                    : 'warning'
-                                }
-                              />
-                            </>
-                          ) : (
-                            <Chip
-                              label={item.value}
-                              size="small"
-                              color={getStatusColor(shipment.status)}
-                              sx={{ fontWeight: 600 }}
-                            />
-                          )}
-                        </Stack>
-                      ) : (
-                        <Typography variant="body1" fontWeight={600} sx={{ wordBreak: 'break-word' }}>
-                          {item.value}
-                        </Typography>
-                      )}
-                    </Box>
-                  </Stack>
-                </Box>
-              ))}
-            </Box>
-
-            {/* Activity Assignments Section */}
-            {activityAssignments.length > 0 && (
-              <Box sx={{ mt: 4 }}>
-                <Box display="flex" alignItems="center" gap={1.5} mb={2.5}>
-                  <Avatar
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      bgcolor: 'primary.main',
-                      color: 'white',
-                    }}
-                  >
-                    <AssignmentTurnedIn fontSize="small" />
-                  </Avatar>
-                  <Typography variant="h6" fontWeight={700}>
-                    Assigned Activities & Field Staff
-                  </Typography>
-                </Box>
-                <Stack spacing={1.5}>
-                  {(() => {
-                    // Group assignments by activity and sort by priority
-                    const assignmentsByActivity = activityAssignments.reduce((acc, assignment) => {
-                      const activityId = assignment.clearance_activity_id
-                      if (!acc[activityId]) {
-                        acc[activityId] = []
-                      }
-                      acc[activityId].push(assignment)
-                      return acc
-                    }, {})
-
-                    // Get activities with their priorities and sort
-                    const activitiesWithAssignments = Object.keys(assignmentsByActivity)
-                      .map(activityId => {
-                        const activity = clearanceActivities.find(a => a.id === parseInt(activityId))
-                        return {
-                          activity,
-                          activityId: parseInt(activityId),
-                          assignments: assignmentsByActivity[activityId],
-                          priority: activity?.priority || 999
-                        }
-                      })
-                      .filter(item => item.activity) // Only include activities that exist
-                      .sort((a, b) => a.priority - b.priority)
-
-                    return activitiesWithAssignments.map(({ activity, assignments }) => (
-                      <Paper
-                        key={activity.id}
-                        elevation={0}
-                        sx={{
-                          p: 2.5,
-                          borderRadius: 2,
-                          border: '1px solid',
-                          borderColor: 'divider',
-                          borderLeft: '4px solid',
-                          borderLeftColor: 'primary.main',
-                          bgcolor: 'background.paper',
-                        }}
-                      >
-                        <Stack spacing={1.5}>
-                          <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-                            <Box>
-                              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>
-                                {activity.name}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                Priority {activity.priority}
-                                {activity.description && ` • ${activity.description}`}
-                              </Typography>
-                            </Box>
-                            <Chip
-                              label={`${assignments.length} ${assignments.length === 1 ? 'staff' : 'staff'}`}
-                              size="small"
-                              color="primary"
-                              variant="filled"
-                              sx={{ fontWeight: 600 }}
-                            />
-                          </Box>
-                          <Divider sx={{ my: 1.5 }} />
-                          <Stack spacing={1.5}>
-                            {assignments.map((assignment) => (
-                              <Box
-                                key={assignment.id}
-                                sx={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  p: 2,
-                                  borderRadius: 1.5,
-                                  bgcolor: 'grey.50',
-                                  border: '1px solid',
-                                  borderColor: 'divider',
-                                  transition: 'all 0.2s',
-                                  '&:hover': {
-                                    bgcolor: 'action.hover',
-                                    borderColor: 'primary.main',
-                                  },
-                                }}
-                              >
-                                <Stack direction="row" spacing={1.5} alignItems="center" sx={{ flex: 1, minWidth: 0 }}>
-                                  <Avatar
-                                    sx={{
-                                      width: 36,
-                                      height: 36,
-                                      bgcolor: 'primary.main',
-                                      color: 'white',
-                                      fontSize: '0.875rem',
-                                      fontWeight: 600,
-                                    }}
-                                  >
-                                    {assignment.user_name?.charAt(0)?.toUpperCase() || assignment.user_email?.charAt(0)?.toUpperCase() || '?'}
-                                  </Avatar>
-                                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                                    <Typography variant="body2" fontWeight={600} sx={{ mb: 0.25 }}>
-                                      {assignment.user_name || 'N/A'}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                                      {assignment.user_email}
-                                    </Typography>
-                                  </Box>
-                                </Stack>
-                                <Stack direction="row" spacing={1} alignItems="center">
-                                  <Chip
-                                    label={assignment.status.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                                    size="small"
-                                    color={
-                                      assignment.status === 'completed'
-                                        ? 'success'
-                                        : assignment.status === 'in_progress'
-                                        ? 'primary'
-                                        : assignment.status === 'cancelled'
-                                        ? 'error'
-                                        : 'default'
-                                    }
-                                    sx={{ fontWeight: 600 }}
-                                  />
-                                  {user && assignment.user_id === user.id && 
-                                   ['pending', 'in_progress'].includes(assignment.status) && (
-                                    <Button
-                                      size="small"
-                                      variant="contained"
-                                      color="primary"
-                                      onClick={() => handleOpenStatusDialog(activity)}
-                                      sx={{ ml: 1 }}
-                                    >
-                                      Update
-                                    </Button>
-                                  )}
-                                </Stack>
-                              </Box>
-                            ))}
-                          </Stack>
-                        </Stack>
-                      </Paper>
-                    ))
-                  })()}
-                </Stack>
-              </Box>
-            )}
-
-            {/* My Assigned Activities - Status Update Section */}
-            {myAssignments.length > 0 && (
-              <Box sx={{ mt: 4 }}>
-                <Box display="flex" alignItems="center" gap={1.5} mb={2.5}>
-                  <Avatar
-                    sx={{
-                      width: 36,
-                      height: 36,
-                      bgcolor: 'warning.main',
-                      color: 'white',
-                    }}
-                  >
-                    <PlayArrow fontSize="small" />
-                  </Avatar>
-                  <Typography variant="h6" fontWeight={700}>
-                    My Assigned Activities
-                  </Typography>
-                </Box>
-                <Alert severity="info" sx={{ mb: 2, borderRadius: 2 }}>
-                  You have {myAssignments.length} active assignment{myAssignments.length > 1 ? 's' : ''}. 
-                  Update the status as you work on each activity.
-                </Alert>
-                <Stack spacing={1.5}>
-                  {myAssignments.map((assignment) => {
-                    const activity = clearanceActivities.find(a => a.id === assignment.clearance_activity_id)
-                    if (!activity) return null
-                    
-                    return (
-                      <Paper
-                        key={assignment.id}
-                        elevation={0}
-                        sx={{
-                          p: 2.5,
-                          borderRadius: 2,
-                          border: '2px solid',
-                          borderColor: 'warning.main',
-                          bgcolor: 'warning.light',
-                        }}
-                      >
-                        <Stack spacing={1.5}>
-                          <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-                            <Box>
-                              <Typography variant="subtitle1" fontWeight={700} sx={{ mb: 0.5 }}>
-                                {activity.name}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary">
-                                Priority {activity.priority}
-                                {activity.description && ` • ${activity.description}`}
-                              </Typography>
-                            </Box>
-                            <Chip
-                              label={assignment.status.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase())}
-                              size="small"
-                              color={assignment.status === 'in_progress' ? 'primary' : 'default'}
-                              sx={{ fontWeight: 600 }}
-                            />
-                          </Box>
-                          <Divider />
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            fullWidth
-                            onClick={() => handleOpenStatusDialog(activity)}
-                            startIcon={<PlayArrow />}
-                            sx={{ mt: 1 }}
-                          >
-                            {assignment.status === 'pending' ? 'Start Activity' : 'Update Status'}
-                          </Button>
-                        </Stack>
-                      </Paper>
-                    )
-                  })}
-                </Stack>
-              </Box>
-            )}
-
-            <Box>
-              <Typography variant="body2" color="text.secondary">
-                Current Location
-              </Typography>
-              <Typography variant="body1" fontWeight="medium" sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                <LocationOn fontSize="small" color="primary" />
-                {currentLocation}
-              </Typography>
-            </Box>
-          </Paper>
-        </Grid>
-
-        {/* Compliance Section */}
-        <Grid item xs={12}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3.5,
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Stack spacing={4}>
               <Box>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2.5}>
-                  <Box display="flex" alignItems="center" gap={1.5}>
-                    <Avatar
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        bgcolor: 'primary.main',
-                        color: 'white',
-                      }}
-                    >
-                      <AssignmentTurnedIn fontSize="small" />
-                    </Avatar>
-                    <Typography variant="h6" fontWeight={700}>
-                      Transit Declaration · T1 Forms
-                    </Typography>
-                  </Box>
-                  <Chip
-                    label={`${t1Forms.length} ${t1Forms.length === 1 ? 'Form' : 'Forms'}`}
-                    color={t1Forms.length ? 'primary' : 'default'}
-                    size="small"
-                    sx={{ fontWeight: 600 }}
-                  />
-                </Box>
-                {t1Forms.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    No T1 forms have been submitted for this shipment yet. Generate a T1 to place the cargo under customs transit control.
-                  </Typography>
-                ) : (
-                  <Stack spacing={1.5}>
-                    {t1Forms.slice(0, 3).map((form) => (
-                      <Paper
-                        key={form.id}
-                        variant="outlined"
-                        sx={{
-                          p: 2,
-                          borderRadius: 2,
-                          borderLeft: '4px solid',
-                          borderColor:
-                            form.status === 'approved'
-                              ? 'success.main'
-                              : form.status === 'submitted'
-                              ? 'primary.main'
-                              : form.status === 'rejected'
-                              ? 'error.main'
-                              : 'warning.main',
-                        }}
-                      >
-                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                          <Box>
-                            <Typography variant="subtitle2" fontWeight={700}>
-                              {form.form_number}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {form.goods_description}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {`Transporter: ${form.transporter_name} · ${formatDistanceToNow(new Date(form.created_at), {
-                                addSuffix: true,
-                              })}`}
-                            </Typography>
-                          </Box>
-                          <Chip
-                            label={form.status.replace('_', ' ').toUpperCase()}
-                            size="small"
-                            color={
-                              form.status === 'approved'
-                                ? 'success'
-                                : form.status === 'submitted'
-                                ? 'primary'
-                                : form.status === 'rejected'
-                                ? 'error'
-                                : 'warning'
-                            }
-                          />
-                        </Stack>
-                      </Paper>
-                    ))}
-                    {t1Forms.length > 3 && (
-                      <Typography variant="caption" color="text.secondary">
-                        Showing latest 3 of {t1Forms.length} T1 submissions.
-                      </Typography>
-                    )}
-                    {latestT1 && (
-                      <Typography variant="body2" color="text.secondary">
-                        Last update: {format(new Date(latestT1.created_at), 'MMM dd, yyyy HH:mm')}
-                      </Typography>
-                    )}
-                  </Stack>
-                )}
-              </Box>
-
-              <Divider />
-
-              <Box>
-                <Box display="flex" justifyContent="space-between" alignItems="center" mb={2.5}>
-                  <Box display="flex" alignItems="center" gap={1.5}>
-                    <Avatar
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        bgcolor: 'secondary.main',
-                        color: 'white',
-                      }}
-                    >
-                      <Security fontSize="small" />
-                    </Avatar>
-                    <Typography variant="h6" fontWeight={700}>
-                      Customs Seal Register
-                    </Typography>
-                  </Box>
-                  <Chip
-                    label={`${seals.length} ${seals.length === 1 ? 'Seal' : 'Seals'}`}
-                    color={seals.length ? 'secondary' : 'default'}
-                    size="small"
-                    sx={{ fontWeight: 600 }}
-                  />
-                </Box>
-                {seals.length === 0 ? (
-                  <Typography variant="body2" color="text.secondary">
-                    No seals recorded. Document seal issuance to secure the cargo before transit.
-                  </Typography>
-                ) : (
-                  <Stack spacing={1.5}>
-                    {seals.slice(0, 3).map((seal) => (
-                      <Paper
-                        key={seal.id}
-                        variant="outlined"
-                        sx={{
-                          p: 2,
-                          borderRadius: 2,
-                          borderLeft: '4px solid',
-                          borderColor: seal.is_tampered ? 'error.main' : 'secondary.main',
-                        }}
-                      >
-                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                          <Box>
-                            <Typography variant="subtitle2" fontWeight={700}>
-                              {seal.seal_number}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {seal.seal_type || 'Standard seal'}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary">
-                              {seal.applied_location
-                                ? `${seal.applied_location} · ${formatDistanceToNow(new Date(seal.created_at), {
-                                    addSuffix: true,
-                                  })}`
-                                : formatDistanceToNow(new Date(seal.created_at), { addSuffix: true })}
-                            </Typography>
-                          </Box>
-                          <Chip
-                            label={seal.is_tampered ? 'Tampered' : 'Intact'}
-                            size="small"
-                            color={seal.is_tampered ? 'error' : 'success'}
-                            variant={seal.is_tampered ? 'filled' : 'outlined'}
-                          />
-                        </Stack>
-                      </Paper>
-                    ))}
-                    {seals.length > 3 && (
-                      <Typography variant="caption" color="text.secondary">
-                        Showing latest 3 of {seals.length} seal records.
-                      </Typography>
-                    )}
-                    {latestSeal && (
-                      <Typography variant="body2" color="text.secondary">
-                        Latest seal update: {format(new Date(latestSeal.created_at), 'MMM dd, yyyy HH:mm')}
-                      </Typography>
-                    )}
-                  </Stack>
-                )}
+                <Typography variant="caption" color="text.secondary" fontWeight={600}>CLEARANCE PROGRESS</Typography>
+                <Typography variant="h5" fontWeight={800}>{progressValue}%</Typography>
               </Box>
             </Stack>
+            <LinearProgress 
+              variant="determinate" 
+              value={progressValue} 
+              sx={{ mt: 2, height: 6, borderRadius: 3, bgcolor: '#E9ECEF', '& .MuiLinearProgress-bar': { bgcolor: '#01A3DA' } }} 
+            />
           </Paper>
         </Grid>
-
-        {/* Timeline Section */}
-        <Grid item xs={12}>
-          <Paper
-            elevation={0}
-            sx={{
-              p: 3.5,
-              borderRadius: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            <Box display="flex" alignItems="center" gap={1.5} mb={2}>
-              <Avatar
-                sx={{
-                  width: 40,
-                  height: 40,
-                  bgcolor: 'primary.main',
-                  color: 'white',
-                }}
-              >
-                <AccessTime fontSize="small" />
-              </Avatar>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', height: '100%' }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha('#4CAF50', 0.1), color: '#4CAF50' }}>
+                <Inventory2 />
+              </Box>
               <Box>
-                <Typography variant="h6" fontWeight={700}>
-                  Timeline & History
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Live audit trail of every status update, location ping, and operational note
-                </Typography>
+                <Typography variant="caption" color="text.secondary" fontWeight={600}>COMPLIANCE DOCS</Typography>
+                <Typography variant="h5" fontWeight={800}>{t1Forms.length + seals.length}</Typography>
               </Box>
-            </Box>
-
-            <Divider sx={{ mb: 3 }} />
-
-            {timeline.length === 0 ? (
-              <Box
-                sx={{
-                  p: 4,
-                  textAlign: 'center',
-                  borderRadius: 2,
-                  bgcolor: 'grey.50',
-                  border: '1px dashed',
-                  borderColor: 'divider',
-                }}
-              >
-                <Typography variant="body2" color="text.secondary">
-                  No tracking events have been recorded yet.
-                </Typography>
-              </Box>
-            ) : (
-              <Stack spacing={2}>
-                {timeline
-                  .slice()
-                  .reverse()
-                  .map((event, idx) => (
-                    <Paper
-                      key={`${event.timestamp}-${idx}`}
-                      elevation={0}
-                      sx={{
-                        p: 2.5,
-                        borderRadius: 2,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        borderLeft: '4px solid',
-                        borderLeftColor:
-                          event.status === 'delivered'
-                            ? 'success.main'
-                            : event.status === 'in_transit'
-                            ? 'info.main'
-                            : event.status === 'cancelled'
-                            ? 'error.main'
-                            : 'warning.main',
-                        transition: 'all 0.2s',
-                        '&:hover': {
-                          boxShadow: 2,
-                          transform: 'translateY(-2px)',
-                        },
-                      }}
-                    >
-                      <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
-                        <Box>
-                          <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
-                            {normaliseStatusLabel(event.status)}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                            <AccessTime fontSize="inherit" />
-                            {event.timestamp ? format(new Date(event.timestamp), 'MMM dd, yyyy HH:mm') : 'No timestamp'}
-                          </Typography>
-                        </Box>
-                        <Chip
-                          label={normaliseStatusLabel(event.status)}
-                          size="small"
-                          color={getStatusColor(event.status)}
-                          sx={{ fontWeight: 600 }}
-                        />
-                      </Box>
-                      {event.location && (
-                        <Box
-                          sx={{
-                            mt: 1.5,
-                            p: 1.5,
-                            borderRadius: 1,
-                            bgcolor: 'grey.50',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 1,
-                          }}
-                        >
-                          <LocationOn fontSize="small" color="primary" />
-                          <Typography variant="body2" fontWeight={500}>
-                            {event.location}
-                          </Typography>
-                        </Box>
-                      )}
-                      {event.notes && (
-                        <Typography variant="body2" sx={{ mt: 1.5, p: 1.5, borderRadius: 1, bgcolor: 'grey.50' }}>
-                          {event.notes}
-                        </Typography>
-                      )}
-                    </Paper>
-                  ))}
-              </Stack>
-            )}
-          </Paper>
-        </Grid>
-
-        {/* Clearance History Section */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 8px 20px rgba(30, 60, 114, 0.08)' }}>
-            <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1.5 }}>
-              <Timeline color="primary" />
-              <Typography variant="h6" fontWeight="bold">
-                Clearance History
-              </Typography>
-              {shipment.current_clearance_activity_name && (
-                <Chip
-                  label={`Current: ${shipment.current_clearance_activity_name}${shipment.current_clearance_substate ? ` - ${shipment.current_clearance_substate}` : ''}`}
-                  color="primary"
-                  size="small"
-                  sx={{ ml: 'auto' }}
-                />
-              )}
             </Stack>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              Complete audit trail of clearance activities from validation to release.
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              {complianceSummary?.missing_count || 0} Action required
             </Typography>
-
-            <Divider sx={{ my: 2 }} />
-
-            {clearanceHistory.length === 0 ? (
-              <Alert severity="info" sx={{ borderRadius: 2 }}>
-                <AlertTitle>No Clearance History</AlertTitle>
-                Clearance activities will appear here as the shipment progresses through the clearance process.
-              </Alert>
-            ) : (
-              <Stack spacing={2}>
-                {clearanceHistory.map((entry, idx) => {
-                  const isCompleted = entry.status === 'completed'
-                  const isInProgress = entry.status === 'in_progress'
-                  const isLast = idx === clearanceHistory.length - 1
-                  
-                  return (
-                    <Paper
-                      key={entry.id}
-                      variant="outlined"
-                      sx={{
-                        p: 2.5,
-                        borderRadius: 2,
-                        borderLeft: 4,
-                        borderColor: isCompleted ? 'success.main' : isInProgress ? 'primary.main' : 'warning.main',
-                        backgroundColor: isInProgress ? 'action.hover' : 'background.paper',
-                      }}
-                    >
-                      <Stack direction="row" spacing={2} alignItems="flex-start">
-                        <Avatar
-                          sx={{
-                            bgcolor: isCompleted ? 'success.main' : isInProgress ? 'primary.main' : 'warning.main',
-                            width: 40,
-                            height: 40,
-                          }}
-                        >
-                          {isCompleted ? <Done /> : isInProgress ? <PlayArrow /> : <Schedule />}
-                        </Avatar>
-                        <Box sx={{ flex: 1 }}>
-                          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
-                            <Typography variant="subtitle1" fontWeight="bold">
-                              {entry.clearance_activity_name || 'Unknown Activity'}
-                            </Typography>
-                            <Chip
-                              label={entry.status === 'completed' ? 'Completed' : entry.status === 'in_progress' ? 'In Progress' : 'Skipped'}
-                              size="small"
-                              color={isCompleted ? 'success' : isInProgress ? 'primary' : 'default'}
-                              sx={{ height: 20 }}
-                            />
-                            {entry.substate && (
-                              <Chip
-                                label={entry.substate}
-                                size="small"
-                                variant="outlined"
-                                sx={{ height: 20, fontSize: '0.7rem' }}
-                              />
-                            )}
-                            {isAdmin && (
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                startIcon={<Edit />}
-                                onClick={() => {
-                                  const activity = clearanceActivities.find(a => a.id === entry.clearance_activity_id)
-                                  if (activity) handleOpenStatusDialog(activity)
-                                }}
-                                sx={{ ml: 'auto' }}
-                              >
-                                Update
-                              </Button>
-                            )}
-                          </Stack>
-                          
-                          <Stack direction="row" spacing={2} sx={{ mb: 1 }}>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <PersonOutline fontSize="small" />
-                              {entry.updater_name || 'Unknown User'}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                              <AccessTime fontSize="small" />
-                              Started: {format(new Date(entry.started_at), 'MMM dd, yyyy HH:mm')}
-                            </Typography>
-                            {entry.completed_at && (
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Done fontSize="small" />
-                                Completed: {format(new Date(entry.completed_at), 'MMM dd, yyyy HH:mm')}
-                              </Typography>
-                            )}
-                            {entry.time_spent_minutes && (
-                              <Typography variant="caption" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                <Schedule fontSize="small" />
-                                Time: {entry.time_spent_minutes} min
-                              </Typography>
-                            )}
-                          </Stack>
-                          
-                          {entry.notes && (
-                            <Typography variant="body2" sx={{ mt: 1, p: 1, bgcolor: 'action.hover', borderRadius: 1 }}>
-                              {entry.notes}
-                            </Typography>
-                          )}
-                        </Box>
-                      </Stack>
-                    </Paper>
-                  )
-                })}
-              </Stack>
-            )}
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', height: '100%' }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha('#9C27B0', 0.1), color: '#9C27B0' }}>
+                <Security />
+              </Box>
+              <Box>
+                <Typography variant="caption" color="text.secondary" fontWeight={600}>ACTIVE FIELD STAFF</Typography>
+                <Typography variant="h5" fontWeight={800}>
+                  {activityAssignments.filter(a => a.status === 'in_progress').length}
+                </Typography>
+              </Box>
+            </Stack>
+            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+              {activityAssignments.length} Total assignments
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', height: '100%', bgcolor: '#000000', color: '#FFFFFF' }}>
+            <Stack direction="row" spacing={2} alignItems="center">
+              <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha('#FFF', 0.1), color: '#FFF' }}>
+                <ChatBubbleOutline />
+              </Box>
+              <Box>
+                <Typography variant="caption" sx={{ color: alpha('#FFF', 0.6) }} fontWeight={600}>OPEN QUERIES</Typography>
+                <Typography variant="h5" fontWeight={800}>{comments.length}</Typography>
+              </Box>
+            </Stack>
+            <Button 
+              size="small" 
+              fullWidth 
+              variant="text" 
+              onClick={() => navigate(`/compliance/${shipmentId}`)}
+              sx={{ mt: 1, color: '#01A3DA', fontWeight: 700, p: 0, justifyContent: 'flex-start' }}
+            >
+              Manage Compliance →
+            </Button>
           </Paper>
         </Grid>
       </Grid>
 
-      {/* Update Clearance Status Dialog */}
+      <Grid container spacing={4}>
+        {/* Main Details Section - Left (7/12) */}
+        <Grid item xs={12} lg={7}>
+          <Stack spacing={4}>
+            {/* Shipment Basic Details */}
+            <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#FFF' }}>
+              <Typography variant="h6" fontWeight={800} sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Description sx={{ color: '#01A3DA' }} /> MISSION SPECIFICATIONS
+              </Typography>
+              <Grid container spacing={3}>
+                {detailItems.slice(0, 14).map((item, idx) => (
+                  <Grid item xs={12} sm={6} key={idx}>
+                    <Box sx={{ p: 2, borderRadius: 2, bgcolor: '#F8F9FA', border: '1px solid transparent', '&:hover': { borderColor: 'divider', bgcolor: '#FFF' }, transition: 'all 0.2s' }}>
+                      <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 1, display: 'block', mb: 1 }}>
+                        {item.label}
+                      </Typography>
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        <Box sx={{ color: 'primary.main', display: 'flex', opacity: 0.8 }}>
+                          {item.icon}
+                        </Box>
+                        <Typography variant="body1" fontWeight={item.isActivityStatus ? 800 : 600} color="text.primary">
+                          {item.value}
+                        </Typography>
+                      </Stack>
+                    </Box>
+                  </Grid>
+                ))}
+              </Grid>
+            </Paper>
+
+            {/* Clearance History */}
+            <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#FFF' }}>
+              <Typography variant="h6" fontWeight={800} sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <AssignmentTurnedIn sx={{ color: '#01A3DA' }} /> CLEARANCE LOG
+              </Typography>
+              {clearanceHistory.length === 0 ? (
+                <Alert severity="info" variant="outlined" sx={{ borderRadius: 3, borderStyle: 'dashed' }}>
+                  No clearance history recorded yet.
+                </Alert>
+              ) : (
+                <Stack spacing={2.5}>
+                  {clearanceHistory.slice().reverse().map((entry) => (
+                    <Box 
+                      key={entry.id} 
+                      sx={{ 
+                        p: 3, 
+                        borderRadius: 3, 
+                        bgcolor: '#FFF', 
+                        border: '1px solid', 
+                        borderColor: 'divider',
+                        position: 'relative',
+                        transition: 'transform 0.2s',
+                        '&:hover': { transform: 'translateX(4px)', borderColor: 'primary.main' }
+                      }}
+                    >
+                      <Stack direction="row" spacing={3} alignItems="flex-start">
+                        <Box sx={{ 
+                          width: 40, 
+                          height: 40, 
+                          borderRadius: '12px', 
+                          bgcolor: entry.status === 'completed' ? alpha('#4CAF50', 0.1) : alpha('#01A3DA', 0.1),
+                          color: entry.status === 'completed' ? '#4CAF50' : '#01A3DA',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          flexShrink: 0
+                        }}>
+                          {entry.status === 'completed' ? <Done /> : <PlayArrow />}
+                        </Box>
+                        <Box sx={{ flex: 1 }}>
+                          <Stack direction="row" justifyContent="space-between" mb={1}>
+                            <Typography variant="subtitle1" fontWeight={800}>{entry.clearance_activity_name || 'Unknown Activity'}</Typography>
+                            <Chip 
+                              label={entry.status.toUpperCase()} 
+                              size="small" 
+                              sx={{ fontWeight: 800, fontSize: '0.65rem', borderRadius: 1 }} 
+                            />
+                          </Stack>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontStyle: entry.notes ? 'normal' : 'italic' }}>
+                            {entry.notes || 'No detailed log provided for this stage.'}
+                          </Typography>
+                          <Stack direction="row" spacing={3}>
+                            <Typography variant="caption" color="text.disabled" sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                              <PersonOutline fontSize="inherit" /> {entry.updater_name || 'System Operator'}
+                            </Typography>
+                            <Typography variant="caption" color="text.disabled" sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
+                              <AccessTime fontSize="inherit" /> {format(new Date(entry.started_at), 'MMM dd, yyyy • HH:mm')}
+                            </Typography>
+                          </Stack>
+                        </Box>
+                        {isAdmin && (
+                          <IconButton 
+                            size="small" 
+                            onClick={() => {
+                              const activity = clearanceActivities.find(a => a.id === entry.clearance_activity_id)
+                              if (activity) handleOpenStatusDialog(activity)
+                            }}
+                          >
+                            <Edit fontSize="small" />
+                          </IconButton>
+                        )}
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
+              )}
+            </Paper>
+          </Stack>
+        </Grid>
+
+        {/* Support Sections - Right (5/12) */}
+        <Grid item xs={12} lg={5}>
+          <Stack spacing={4}>
+            {/* Tracking Timeline */}
+            <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#F8F9FA' }}>
+              <Typography variant="h6" fontWeight={800} sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                <Timeline sx={{ color: '#01A3DA' }} /> MISSION TIMELINE
+              </Typography>
+              {timeline.length === 0 ? (
+                <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+                  Awaiting initial tracking telemetry.
+                </Typography>
+              ) : (
+                <Box sx={{ position: 'relative', pl: 3 }}>
+                  <Box sx={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 2, bgcolor: 'divider' }} />
+                  <Stack spacing={4}>
+                    {timeline.slice().reverse().map((event, idx) => (
+                      <Box key={idx} sx={{ position: 'relative' }}>
+                        <Box sx={{ 
+                          position: 'absolute', 
+                          left: -32, 
+                          top: 4, 
+                          width: 14, 
+                          height: 14, 
+                          borderRadius: '50%', 
+                          bgcolor: idx === 0 ? 'primary.main' : 'divider',
+                          border: '3px solid #F8F9FA',
+                          zIndex: 1
+                        }} />
+                        <Box>
+                          <Typography variant="subtitle2" fontWeight={800} sx={{ color: 'text.primary', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                            {normaliseStatusLabel(event.status)}
+                          </Typography>
+                          {event.location && (
+                            <Typography variant="caption" color="primary.main" fontWeight={800} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
+                              <LocationOn fontSize="inherit" /> {event.location.toUpperCase()}
+                            </Typography>
+                          )}
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1, lineHeight: 1.6 }}>{event.notes}</Typography>
+                          <Typography variant="caption" color="text.disabled" sx={{ mt: 1.5, display: 'block' }}>
+                            {format(new Date(event.timestamp), 'MMM dd, HH:mm')}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+            </Paper>
+
+            {/* Structured Queries (ASYCUDA Style) */}
+            <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#FFF' }}>
+              <ShipmentQueries 
+                shipmentId={shipmentId} 
+                isAdmin={isAdmin} 
+                user={user} 
+              />
+            </Paper>
+
+            {/* Field Staff Assignments - Moved to smaller card */}
+            <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: '#FFF' }}>
+              <Typography variant="subtitle1" fontWeight={800} sx={{ mb: 2.5, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Security color="primary" sx={{ fontSize: 20 }} /> FIELD STAFF
+              </Typography>
+              {activityAssignments.length === 0 ? (
+                <Typography variant="body2" color="text.disabled">No field staff active.</Typography>
+              ) : (
+                <Stack spacing={2}>
+                  {activityAssignments.map((assignment) => (
+                    <Box key={assignment.id} sx={{ p: 1.5, borderRadius: 2, bgcolor: '#F8F9FA' }}>
+                      <Stack direction="row" spacing={2} alignItems="center">
+                        <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: '0.8rem', fontWeight: 800 }}>
+                          {assignment.user_name?.charAt(0)}
+                        </Avatar>
+                        <Box sx={{ flex: 1 }}>
+                          <Typography variant="caption" fontWeight={800} display="block">{assignment.user_name}</Typography>
+                          <Typography variant="caption" color="text.secondary">{assignment.clearance_activity_name}</Typography>
+                        </Box>
+                        <Chip label={assignment.status} size="small" variant="outlined" sx={{ fontSize: '0.6rem', fontWeight: 900, height: 18 }} />
+                      </Stack>
+                    </Box>
+                  ))}
+                </Stack>
+              )}
+            </Paper>
+          </Stack>
+        </Grid>
+      </Grid>
+
+      {/* Internal Comments & Feedback - Footing Section (Full Width) */}
+      <Box sx={{ mt: 6 }}>
+        <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#000000', color: '#FFF' }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
+            <Typography variant="h6" fontWeight={800} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+              <ChatBubbleOutline sx={{ color: '#01A3DA' }} /> COMMUNICATION HUB
+            </Typography>
+            <Chip label={`${comments.length} Messages`} sx={{ bgcolor: alpha('#FFF', 0.1), color: '#FFF', fontWeight: 700 }} />
+          </Stack>
+          
+          <Grid container spacing={4}>
+            <Grid item xs={12} md={8}>
+              <Box sx={{ maxHeight: 500, overflowY: 'auto', pr: 2 }}>
+                {comments.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 8, opacity: 0.5 }}>
+                    <ChatBubbleOutline sx={{ fontSize: 48, mb: 2 }} />
+                    <Typography variant="body1">No internal logs or feedback recorded for this mission.</Typography>
+                  </Box>
+                ) : (
+                  <Stack spacing={3}>
+                    {comments.map((comment) => (
+                      <Box key={comment.id} sx={{ p: 2.5, borderRadius: 3, bgcolor: alpha('#FFF', 0.05), border: '1px solid', borderColor: alpha('#FFF', 0.1) }}>
+                        <Stack direction="row" spacing={2} alignItems="flex-start">
+                          <Avatar 
+                            src={comment.author?.photo} 
+                            sx={{ width: 40, height: 40, bgcolor: comment.author?.role === 'client' ? 'secondary.main' : 'primary.main' }}
+                          >
+                            {comment.author?.name?.charAt(0)}
+                          </Avatar>
+                          <Box sx={{ flex: 1 }}>
+                            <Stack direction="row" justifyContent="space-between" mb={1}>
+                              <Typography variant="subtitle2" fontWeight={800}>
+                                {comment.author?.name}
+                                <Chip 
+                                  label={comment.author?.role?.toUpperCase()} 
+                                  size="small" 
+                                  sx={{ ml: 1.5, height: 18, fontSize: '0.65rem', fontWeight: 900, bgcolor: alpha('#FFF', 0.1), color: '#FFF' }} 
+                                />
+                              </Typography>
+                              <Typography variant="caption" sx={{ color: alpha('#FFF', 0.4) }}>
+                                {formatDistanceToNow(new Date(comment.created_at))} ago
+                              </Typography>
+                            </Stack>
+                            <Typography variant="body2" sx={{ lineHeight: 1.6, opacity: 0.9 }}>
+                              {comment.content}
+                            </Typography>
+                            <Stack direction="row" spacing={2} mt={2}>
+                              <Button 
+                                size="small" 
+                                startIcon={<Reply />} 
+                                sx={{ color: '#01A3DA', fontWeight: 700, fontSize: '0.75rem' }}
+                                onClick={() => setReplyTo(comment)}
+                              >
+                                REPLY
+                              </Button>
+                              {(isAdmin || (user && comment.user_id === user.id)) && (
+                                <IconButton size="small" sx={{ color: alpha('#F44336', 0.6) }} onClick={() => handleDeleteComment(comment.id)}>
+                                  <DeleteOutline fontSize="small" />
+                                </IconButton>
+                              )}
+                            </Stack>
+                          </Box>
+                        </Stack>
+                      </Box>
+                    ))}
+                  </Stack>
+                )}
+              </Box>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Box sx={{ position: 'sticky', top: 24 }}>
+                <Typography variant="body2" sx={{ mb: 2, color: alpha('#FFF', 0.6), fontWeight: 600 }}>
+                  Log internal notes or mission feedback. These are visible to authorized personnel only.
+                </Typography>
+                {replyTo && (
+                  <Alert 
+                    severity="info" 
+                    onClose={() => setReplyTo(null)}
+                    sx={{ mb: 2, bgcolor: alpha('#01A3DA', 0.1), color: '#01A3DA', border: '1px solid', borderColor: alpha('#01A3DA', 0.2) }}
+                  >
+                    Replying to <strong>{replyTo.author?.name}</strong>
+                  </Alert>
+                )}
+                <Stack spacing={2}>
+                  <FormTextField
+                    placeholder={replyTo ? "Draft a response..." : "Log a new mission update..."}
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    fullWidth
+                    multiline
+                    rows={4}
+                    disabled={submitting}
+                    sx={{ 
+                      '& .MuiOutlinedInput-root': { 
+                        bgcolor: alpha('#FFF', 0.05),
+                        color: '#FFF',
+                        '& fieldset': { borderColor: alpha('#FFF', 0.2) },
+                        '&:hover fieldset': { borderColor: '#01A3DA' },
+                      }
+                    }}
+                  />
+                  <Button 
+                    variant="contained" 
+                    fullWidth
+                    onClick={handlePostComment}
+                    disabled={!newComment.trim() || submitting}
+                    startIcon={submitting ? <CircularProgress size={20} color="inherit" /> : <Send />}
+                    sx={{ py: 1.5, fontWeight: 800, bgcolor: '#01A3DA', '&:hover': { bgcolor: '#0087B5' } }}
+                  >
+                    {replyTo ? 'POST REPLY' : 'LOG UPDATE'}
+                  </Button>
+                </Stack>
+              </Box>
+            </Grid>
+          </Grid>
+        </Paper>
+      </Box>
+
+      {/* Update Status Dialog */}
       <FormDialog
         open={openStatusDialog}
         onClose={() => {
@@ -1432,49 +987,50 @@ const ShipmentDetail = () => {
         loading={submitting}
         maxWidth="sm"
       >
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Update the clearance status for this activity. This will update both the history and your assignment.
+        <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+          Update the clearance status for this activity. This will reflect in the history and tracking cockpit.
         </Alert>
-        <FormSelect
-          label="Status"
-          value={statusForm.status}
-          onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
-          options={isAdmin ? [
-            { value: 'pending', label: 'Pending' },
-            { value: 'in_progress', label: 'In Progress' },
-            { value: 'completed', label: 'Completed' },
-          ] : [
-            { value: 'in_progress', label: 'In Progress' },
-            { value: 'completed', label: 'Completed' },
-          ]}
-          required
-          disabled={submitting}
-        />
-        {selectedActivity?.substates && selectedActivity.substates.length > 0 && (
+        <Stack spacing={3}>
           <FormSelect
-            label="Substate (Optional)"
-            value={statusForm.substate}
-            onChange={(e) => setStatusForm({ ...statusForm, substate: e.target.value })}
-            options={[
-              { value: '', label: 'None' },
-              ...selectedActivity.substates.map(s => ({ value: s, label: s })),
+            label="Current Status"
+            value={statusForm.status}
+            onChange={(e) => setStatusForm({ ...statusForm, status: e.target.value })}
+            options={isAdmin ? [
+              { value: 'pending', label: 'Pending' },
+              { value: 'in_progress', label: 'In Progress' },
+              { value: 'completed', label: 'Completed' },
+            ] : [
+              { value: 'in_progress', label: 'In Progress' },
+              { value: 'completed', label: 'Completed' },
             ]}
+            required
             disabled={submitting}
           />
-        )}
-        <FormTextField
-          label="Notes (Optional)"
-          value={statusForm.notes}
-          onChange={(e) => setStatusForm({ ...statusForm, notes: e.target.value })}
-          multiline
-          rows={3}
-          disabled={submitting}
-          placeholder="Add any notes about this status update..."
-        />
+          {selectedActivity?.substates && selectedActivity.substates.length > 0 && (
+            <FormSelect
+              label="Activity Substate"
+              value={statusForm.substate}
+              onChange={(e) => setStatusForm({ ...statusForm, substate: e.target.value })}
+              options={[
+                { value: '', label: 'None' },
+                ...selectedActivity.substates.map(s => ({ value: s, label: s })),
+              ]}
+              disabled={submitting}
+            />
+          )}
+          <FormTextField
+            label="Internal Notes"
+            value={statusForm.notes}
+            onChange={(e) => setStatusForm({ ...statusForm, notes: e.target.value })}
+            multiline
+            rows={4}
+            disabled={submitting}
+            placeholder="Add operational notes or updates..."
+          />
+        </Stack>
       </FormDialog>
     </Box>
   )
 }
 
 export default ShipmentDetail
-

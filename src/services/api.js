@@ -1,4 +1,5 @@
 import axios from 'axios'
+// Forced reload: 2026-03-19T02:20:00Z
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://epa-backend-latest.onrender.com'
@@ -18,6 +19,7 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
+    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`)
     return config
   },
   (error) => {
@@ -577,6 +579,18 @@ export const clientsAPI = {
     const response = await api.get(`/api/clients/${clientId}/documents`)
     return response.data
   },
+  activate: async (clientId) => {
+    const response = await api.patch(`/api/clients/${clientId}/activate`)
+    return response.data
+  },
+  deactivate: async (clientId) => {
+    const response = await api.patch(`/api/clients/${clientId}/deactivate`)
+    return response.data
+  },
+  delete: async (clientId) => {
+    const response = await api.delete(`/api/clients/${clientId}`)
+    return response.data
+  },
 }
 
 // Depots API
@@ -599,6 +613,21 @@ export const depotsAPI = {
   },
   delete: async (id) => {
     const response = await api.delete(`/api/depots/${id}`)
+    return response.data
+  },
+}
+
+export const commentsAPI = {
+  listByShipment: async (shipmentId) => {
+    const response = await api.get(`/api/comments/shipment/${shipmentId}`)
+    return response.data
+  },
+  create: async (shipmentId, data) => {
+    const response = await api.post(`/api/comments/shipment/${shipmentId}`, data)
+    return response.data
+  },
+  delete: async (commentId) => {
+    const response = await api.delete(`/api/comments/${commentId}`)
     return response.data
   },
 }
@@ -629,6 +658,33 @@ export const clearanceActivitiesAPI = {
       activity_id: activityId,
       new_position: newPosition,
     })
+    return response.data
+  },
+}
+
+export const queriesAPI = {
+  listByShipment: async (shipmentId) => {
+    const response = await api.get(`/api/queries/shipment/${shipmentId}`)
+    return response.data
+  },
+  create: async (data) => {
+    const response = await api.post('/api/queries/', data)
+    return response.data
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/api/queries/${id}`, data)
+    return response.data
+  },
+  reply: async (id, replies) => {
+    const response = await api.patch(`/api/queries/${id}/reply`, replies)
+    return response.data
+  },
+  updateStatus: async (id, data) => {
+    const response = await api.patch(`/api/queries/${id}/status`, data)
+    return response.data
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/api/queries/${id}`)
     return response.data
   },
 }

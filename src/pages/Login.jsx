@@ -9,56 +9,21 @@ import {
   Paper,
   CircularProgress,
   LinearProgress,
-  Grid,
   Stack,
   Divider,
 } from '@mui/material'
 import { alpha } from '@mui/material/styles'
 import {
   Login as LoginIcon,
-  Business,
   Security,
-  Dashboard,
   LocalShipping,
   VerifiedUser,
-  Assessment,
-  Speed,
-  TrendingUp,
-  Shield,
-  CheckCircle,
-  Analytics,
+  Dashboard as DashboardIcon,
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
 import { showSuccessAlert, showErrorAlert, showLoadingAlert, closeAlert } from '../utils/alerts'
 import FormTextField from '../components/FormTextField'
 import EPALogo from '../components/EPALogo'
-
-const FeatureItem = ({ icon, title, description }) => (
-  <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
-    <Box
-      sx={{
-        p: 1.5,
-        borderRadius: 2,
-        bgcolor: alpha('#fff', 0.1),
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        minWidth: 48,
-        height: 48,
-      }}
-    >
-      {icon}
-    </Box>
-    <Box>
-      <Typography variant="subtitle1" fontWeight={600} sx={{ color: 'white', mb: 0.5 }}>
-        {title}
-      </Typography>
-      <Typography variant="body2" sx={{ color: alpha('#fff', 0.8) }}>
-        {description}
-      </Typography>
-    </Box>
-  </Stack>
-)
 
 const Login = () => {
   const [email, setEmail] = useState('')
@@ -78,7 +43,7 @@ const Login = () => {
     }
     
     setLoading(true)
-    const loadingAlert = showLoadingAlert('Logging in...', 'Please wait')
+    const loadingAlert = showLoadingAlert('Authenticating...', 'Accessing secure terminal')
 
     try {
       const result = await login(email, password)
@@ -89,12 +54,12 @@ const Login = () => {
       } else {
         closeAlert()
         setError(result.error || 'Login failed')
-        showErrorAlert('Login Failed', result.error || 'Invalid credentials')
+        showErrorAlert('Access Denied', result.error || 'Invalid credentials provided')
       }
     } catch (err) {
       closeAlert()
       setError('An error occurred. Please try again.')
-      showErrorAlert('Login Failed', 'An error occurred. Please try again.')
+      showErrorAlert('System Error', 'Unable to establish secure connection.')
     } finally {
       setLoading(false)
     }
@@ -105,251 +70,198 @@ const Login = () => {
       sx={{
         minHeight: '100vh',
         display: 'flex',
-        background: '#f5f7fa',
+        bgcolor: '#FFFFFF',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
-      {/* Left Side - Content */}
+      {/* Structural Decorative Elements - Minimalist */}
       <Box
         sx={{
-          flex: 1,
-          display: { xs: 'none', lg: 'flex' },
-          flexDirection: 'column',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          position: 'relative',
-          overflow: 'hidden',
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            width: '200%',
-            height: '200%',
-            top: '-50%',
-            right: '-50%',
-            background: 'radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px)',
-            backgroundSize: '50px 50px',
-            animation: 'float 20s infinite linear',
-            '@keyframes float': {
-              '0%': { transform: 'translate(0, 0)' },
-              '100%': { transform: 'translate(50px, 50px)' },
-            },
-          },
+          position: 'absolute',
+          top: -100,
+          right: -100,
+          width: 400,
+          height: 400,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(1, 163, 218, 0.03) 0%, transparent 70%)',
+          zIndex: 0,
         }}
-      >
-        <Box
-          sx={{
-            position: 'relative',
-            zIndex: 1,
-            p: 6,
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            height: '100%',
-          }}
+      />
+      <Box
+        sx={{
+          position: 'absolute',
+          bottom: -50,
+          left: -50,
+          width: 300,
+          height: 300,
+          borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(0, 0, 0, 0.02) 0%, transparent 70%)',
+          zIndex: 0,
+        }}
+      />
+
+      {/* Main Content Container */}
+      <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center' }}>
+        <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          spacing={{ xs: 4, md: 8 }}
+          alignItems="center"
+          sx={{ width: '100%', py: 8 }}
         >
-          {/* Logo and Title */}
-          <Box sx={{ mb: 6 }}>
-            <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 3 }}>
-              <Box
-                sx={{
-                  p: 2,
-                  borderRadius: 3,
-                  bgcolor: alpha('#fff', 0.2),
-                  backdropFilter: 'blur(10px)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <EPALogo width={120} height={60} variant="white" />
-              </Box>
-              <Box>
-                <Typography variant="h3" component="h1" fontWeight="bold" sx={{ color: 'white', mb: 0.5 }}>
-                  EPA-COCKPIT
-                </Typography>
-                <Typography variant="body1" sx={{ color: alpha('#fff', 0.9) }}>
-                  Freight Management System
-                </Typography>
-              </Box>
-            </Stack>
-            <Typography variant="h5" sx={{ color: 'white', fontWeight: 500, mb: 1 }}>
-              Welcome to Your Command Center
+          {/* Left Side: Brand & Mission */}
+          <Box sx={{ flex: 1, textAlign: { xs: 'center', md: 'left' } }}>
+            <Box sx={{ mb: 4, display: 'inline-block' }}>
+              <EPALogo width={180} height={60} />
+            </Box>
+            <Typography 
+              variant="h2" 
+              fontWeight={800} 
+              sx={{ 
+                color: '#000000', 
+                mb: 2, 
+                letterSpacing: '-1px',
+                lineHeight: 1.1 
+              }}
+            >
+              Enterprise <br />
+              <Typography component="span" variant="inherit" sx={{ color: '#01A3DA' }}>
+                Operational Cockpit
+              </Typography>
             </Typography>
-            <Typography variant="body1" sx={{ color: alpha('#fff', 0.85), maxWidth: '90%', lineHeight: 1.8 }}>
-              Streamline your freight operations with real-time tracking, compliance management, and comprehensive analytics all in one powerful platform.
+            <Typography variant="h6" sx={{ color: '#444', fontWeight: 400, mb: 4, maxWidth: 500 }}>
+              The definitive command center for freight logistics and compliance governance.
             </Typography>
-          </Box>
 
-          <Divider sx={{ my: 4, borderColor: alpha('#fff', 0.2) }} />
-
-          {/* Features */}
-          <Box>
-            <Typography variant="h6" sx={{ color: 'white', mb: 3, fontWeight: 600 }}>
-              Key Features
-            </Typography>
-            <FeatureItem
-              icon={<Dashboard sx={{ fontSize: 24, color: 'white' }} />}
-              title="Real-Time Dashboard"
-              description="Monitor all operations at a glance with live updates and KPIs"
-            />
-            <FeatureItem
-              icon={<LocalShipping sx={{ fontSize: 24, color: 'white' }} />}
-              title="Consignment Management"
-              description="Track and manage consignments from origin to destination seamlessly"
-            />
-            <FeatureItem
-              icon={<VerifiedUser sx={{ fontSize: 24, color: 'white' }} />}
-              title="Compliance Tracking"
-              description="Ensure regulatory compliance with automated documentation and checks"
-            />
-            <FeatureItem
-              icon={<Analytics sx={{ fontSize: 24, color: 'white' }} />}
-              title="Advanced Analytics"
-              description="Make data-driven decisions with comprehensive reports and insights"
-            />
-          </Box>
-
-          {/* Stats or Trust Indicators */}
-          <Box sx={{ mt: 'auto', pt: 4 }}>
-            <Stack direction="row" spacing={4}>
-              <Box>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Shield sx={{ fontSize: 20, color: alpha('#fff', 0.9) }} />
-                  <Typography variant="body2" sx={{ color: alpha('#fff', 0.9), fontWeight: 500 }}>
-                    Secure & Reliable
+            {/* Value Indicators */}
+            <Stack spacing={2} sx={{ display: { xs: 'none', md: 'block' } }}>
+              {[
+                { icon: <DashboardIcon sx={{ color: '#01A3DA' }} />, text: 'Real-time operational intelligence' },
+                { icon: <LocalShipping sx={{ color: '#01A3DA' }} />, text: 'Seamless consignment tracking' },
+                { icon: <VerifiedUser sx={{ color: '#01A3DA' }} />, text: 'Rigorous compliance governance' },
+              ].map((item, index) => (
+                <Stack key={index} direction="row" spacing={2} alignItems="center">
+                  <Box sx={{ 
+                    width: 32, 
+                    height: 32, 
+                    borderRadius: 1, 
+                    bgcolor: 'rgba(1, 163, 218, 0.08)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}>
+                    {item.icon}
+                  </Box>
+                  <Typography variant="body1" fontWeight={500} color="#333">
+                    {item.text}
                   </Typography>
                 </Stack>
-              </Box>
-              <Box>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <Speed sx={{ fontSize: 20, color: alpha('#fff', 0.9) }} />
-                  <Typography variant="body2" sx={{ color: alpha('#fff', 0.9), fontWeight: 500 }}>
-                    High Performance
-                  </Typography>
-                </Stack>
-              </Box>
-              <Box>
-                <Stack direction="row" spacing={1} alignItems="center">
-                  <CheckCircle sx={{ fontSize: 20, color: alpha('#fff', 0.9) }} />
-                  <Typography variant="body2" sx={{ color: alpha('#fff', 0.9), fontWeight: 500 }}>
-                    Enterprise Ready
-                  </Typography>
-                </Stack>
-              </Box>
+              ))}
             </Stack>
           </Box>
-        </Box>
-      </Box>
 
-      {/* Right Side - Login Form */}
-      <Box
-        sx={{
-          flex: { xs: 1, lg: 0.6 },
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          p: { xs: 3, sm: 4, md: 6 },
-        }}
-      >
-        <Container maxWidth="sm">
-          <Paper
-            elevation={0}
-            sx={{
-              p: { xs: 3, sm: 4, md: 5 },
-              borderRadius: 4,
-              background: 'white',
-              border: '1px solid',
-              borderColor: 'divider',
-            }}
-          >
-            {/* Mobile Logo */}
-            <Box sx={{ display: { xs: 'block', lg: 'none' }, textAlign: 'center', mb: 4 }}>
-              <Stack direction="column" spacing={2} alignItems="center" justifyContent="center" sx={{ mb: 2 }}>
-                <EPALogo width={120} height={60} />
-                <Box>
-                  <Typography variant="h5" component="h1" fontWeight="bold">
-                    EPA-COCKPIT
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Freight Management System
-                  </Typography>
-                </Box>
-              </Stack>
-            </Box>
-
-            {/* Desktop Header */}
-            <Box sx={{ display: { xs: 'none', lg: 'block' }, mb: 4 }}>
-              <Typography variant="h4" component="h1" gutterBottom fontWeight="bold">
-                Welcome Back
-              </Typography>
-              <Typography variant="body1" color="text.secondary">
-                Sign in to access your admin cockpit
-              </Typography>
-            </Box>
-
-            {error && (
-              <Alert severity="error" sx={{ mb: 3, borderRadius: 2 }}>
-                {error}
-              </Alert>
-            )}
-
-            {loading && (
-              <LinearProgress sx={{ mb: 3, borderRadius: 1 }} />
-            )}
-
-            <form onSubmit={handleSubmit}>
-              <FormTextField
-                label="Email Address"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                autoFocus
-                disabled={loading}
-                sx={{ mb: 2.5 }}
-              />
-              <FormTextField
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-                disabled={loading}
-                sx={{ mb: 3 }}
-              />
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                size="large"
-                disabled={loading}
-                startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <LoginIcon />}
-                sx={{
-                  mt: 1,
-                  mb: 3,
-                  py: 1.5,
-                  borderRadius: 2,
-                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                  '&:hover': {
-                    background: 'linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%)',
-                  },
-                }}
-              >
-                {loading ? 'Logging in...' : 'Sign In'}
-              </Button>
-            </form>
-
-            <Box sx={{ textAlign: 'center', mt: 3 }}>
-              <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
-                <Security sx={{ fontSize: 16, color: 'text.secondary' }} />
+          {/* Right Side: Login Terminal */}
+          <Box sx={{ flex: 0.8, width: '100%', maxWidth: 450 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                p: { xs: 4, md: 6 },
+                borderRadius: 4,
+                bgcolor: '#FFFFFF',
+                border: '1px solid',
+                borderColor: '#E9ECEF',
+                boxShadow: '0 24px 48px rgba(0,0,0,0.06)',
+              }}
+            >
+              <Box sx={{ mb: 4 }}>
+                <Typography variant="h5" fontWeight={700} color="#000" gutterBottom>
+                  Admin Access
+                </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Secure login with encrypted credentials
+                  Please authenticate to enter the cockpit.
                 </Typography>
-              </Stack>
-            </Box>
-          </Paper>
-        </Container>
-      </Box>
+              </Box>
+
+              {error && (
+                <Alert severity="error" sx={{ mb: 3, borderRadius: 2, bgcolor: '#FFF5F5' }}>
+                  {error}
+                </Alert>
+              )}
+
+              {loading && (
+                <LinearProgress sx={{ mb: 3, borderRadius: 1, bgcolor: '#E9ECEF', '& .MuiLinearProgress-bar': { bgcolor: '#01A3DA' } }} />
+              )}
+
+              <form onSubmit={handleSubmit}>
+                <FormTextField
+                  label="Network ID (Email)"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  autoFocus
+                  disabled={loading}
+                  sx={{ mb: 3 }}
+                />
+                <FormTextField
+                  label="Password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                  disabled={loading}
+                  sx={{ mb: 4 }}
+                />
+                <Button
+                  type="submit"
+                  fullWidth
+                  variant="contained"
+                  size="large"
+                  disabled={loading}
+                  sx={{
+                    py: 1.8,
+                    borderRadius: 2,
+                    bgcolor: '#000000',
+                    color: '#FFFFFF',
+                    fontWeight: 700,
+                    textTransform: 'none',
+                    fontSize: '1rem',
+                    transition: 'all 0.2s',
+                    '&:hover': {
+                      bgcolor: '#333333',
+                      transform: 'translateY(-1px)',
+                    },
+                    '&:active': {
+                      transform: 'translateY(0)',
+                    },
+                  }}
+                >
+                  {loading ? (
+                    <CircularProgress size={24} color="inherit" />
+                  ) : (
+                    'Enter Dashboard'
+                  )}
+                </Button>
+              </form>
+
+              <Box sx={{ mt: 4, textAlign: 'center' }}>
+                <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+                  <Security sx={{ fontSize: 16, color: '#01A3DA' }} />
+                  <Typography variant="caption" color="text.secondary" fontWeight={500}>
+                    Secure 256-bit encrypted session
+                  </Typography>
+                </Stack>
+              </Box>
+            </Paper>
+            
+            <Typography variant="caption" sx={{ mt: 3, display: 'block', textAlign: 'center', color: '#AAA' }}>
+              &copy; {new Date().getFullYear()} EPA Logistics. All rights reserved.
+            </Typography>
+          </Box>
+        </Stack>
+      </Container>
     </Box>
   )
 }

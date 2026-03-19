@@ -3,55 +3,84 @@ import { createTheme } from '@mui/material/styles'
 const theme = createTheme({
   palette: {
     primary: {
-      main: '#1976d2',
-      light: '#42a5f5',
-      dark: '#1565c0',
-      contrastText: '#fff',
+      main: '#01A3DA', // Modern Light Blue
+      light: '#E3F2FD',
+      dark: '#0178A3',
+      contrastText: '#FFFFFF',
     },
     secondary: {
-      main: '#dc004e',
-      light: '#ff5983',
-      dark: '#9a0036',
+      main: '#1A1A1A', // Black/Dark Grey
+      light: '#424242',
+      dark: '#000000',
+      contrastText: '#FFFFFF',
     },
     background: {
-      default: '#f5f5f5',
-      paper: '#ffffff',
+      default: '#FFFFFF', // Pure White
+      paper: '#FFFFFF',
     },
+    text: {
+      primary: '#1A1A1A',
+      secondary: '#6C757D',
+    },
+    // Using shades of blue/black for semantic colors to maintain the 3-color rule
     success: {
-      main: '#2e7d32',
+      main: '#01A3DA',
     },
     warning: {
-      main: '#ed6c02',
+      main: '#0178A3',
     },
     error: {
-      main: '#d32f2f',
+      main: '#1A1A1A',
     },
+    info: {
+      main: '#01A3DA',
+    },
+    divider: '#E9ECEF',
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
+    fontSize: 14,
     h1: {
-      fontSize: '2.5rem',
-      fontWeight: 500,
+      fontSize: '2.25rem',
+      fontWeight: 700,
+      lineHeight: 1.2,
     },
     h2: {
-      fontSize: '2rem',
-      fontWeight: 500,
+      fontSize: '1.875rem',
+      fontWeight: 700,
+      lineHeight: 1.3,
     },
     h3: {
-      fontSize: '1.75rem',
-      fontWeight: 500,
+      fontSize: '1.5rem',
+      fontWeight: 600,
+      lineHeight: 1.4,
     },
     h4: {
-      fontSize: '1.5rem',
-      fontWeight: 500,
+      fontSize: '1.25rem',
+      fontWeight: 600,
+      lineHeight: 1.4,
     },
     h5: {
-      fontSize: '1.25rem',
-      fontWeight: 500,
+      fontSize: '1.125rem',
+      fontWeight: 600,
+      lineHeight: 1.5,
     },
     h6: {
       fontSize: '1rem',
-      fontWeight: 500,
+      fontWeight: 600,
+      lineHeight: 1.5,
+    },
+    body1: {
+      fontSize: '1rem',
+      lineHeight: 1.5,
+    },
+    body2: {
+      fontSize: '0.875rem',
+      lineHeight: 1.57,
+    },
+    button: {
+      textTransform: 'none',
+      fontWeight: 600,
     },
   },
   shape: {

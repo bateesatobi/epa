@@ -16,10 +16,11 @@ export const showSuccessAlert = (title, text = '', timer = 3000) => {
   return Swal.fire({
     ...swalConfig,
     icon: 'success',
+    iconColor: '#01A3DA',
     title,
     text,
     confirmButtonText: 'OK',
-    confirmButtonColor: '#1976d2',
+    confirmButtonColor: '#01A3DA',
     timer,
     timerProgressBar: true,
     showClass: {
@@ -35,10 +36,11 @@ export const showErrorAlert = (title, text = '') => {
   return Swal.fire({
     ...swalConfig,
     icon: 'error',
+    iconColor: '#1A1A1A',
     title,
     text,
     confirmButtonText: 'OK',
-    confirmButtonColor: '#d32f2f',
+    confirmButtonColor: '#1A1A1A',
     showClass: {
       popup: 'animate__animated animate__shakeX',
     },
@@ -49,10 +51,11 @@ export const showWarningAlert = (title, text = '') => {
   return Swal.fire({
     ...swalConfig,
     icon: 'warning',
+    iconColor: '#0178A3',
     title,
     text,
     confirmButtonText: 'OK',
-    confirmButtonColor: '#ed6c02',
+    confirmButtonColor: '#0178A3',
   })
 }
 
@@ -62,11 +65,12 @@ export const showConfirmDialog = (title, text = '', confirmText = 'Yes, proceed'
     title,
     text,
     icon: 'question',
+    iconColor: '#01A3DA',
     showCancelButton: true,
     confirmButtonText: confirmText,
     cancelButtonText: cancelText,
-    confirmButtonColor: '#1976d2',
-    cancelButtonColor: '#6c757d',
+    confirmButtonColor: '#01A3DA',
+    cancelButtonColor: '#1A1A1A',
     reverseButtons: true,
     showClass: {
       popup: 'animate__animated animate__zoomIn',
@@ -78,10 +82,11 @@ export const showInfoAlert = (title, text = '') => {
   return Swal.fire({
     ...swalConfig,
     icon: 'info',
+    iconColor: '#01A3DA',
     title,
     text,
     confirmButtonText: 'OK',
-    confirmButtonColor: '#1976d2',
+    confirmButtonColor: '#01A3DA',
   })
 }
 
@@ -89,6 +94,8 @@ export const showLoadingAlert = (title = 'Processing...', text = 'Please wait') 
   return Swal.fire({
     title,
     text,
+    color: '#1A1A1A',
+    loaderHtml: '<div class="swal2-loader" style="border-color: #01A3DA transparent #01A3DA transparent;"></div>',
     allowOutsideClick: false,
     allowEscapeKey: false,
     showConfirmButton: false,

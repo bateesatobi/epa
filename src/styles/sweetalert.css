@@ -1,80 +1,93 @@
-/* SweetAlert2 Custom Styling */
+/* SweetAlert2 Custom Styling - Premium Minimalist */
 .swal2-popup {
-  border-radius: 16px !important;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15) !important;
-  font-family: 'Roboto', 'Helvetica', 'Arial', sans-serif !important;
+  border-radius: 20px !important;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12) !important;
+  font-family: 'Inter', 'Roboto', sans-serif !important;
+  padding: 2rem !important;
 }
 
 .swal2-title {
-  font-size: 1.5rem !important;
-  font-weight: 600 !important;
-  color: #212121 !important;
-  margin-bottom: 0.5rem !important;
+  font-size: 1.6rem !important;
+  font-weight: 800 !important;
+  color: #000000 !important;
+  letter-spacing: -0.5px !important;
+  margin-bottom: 0.75rem !important;
 }
 
-.swal2-content {
-  font-size: 1rem !important;
-  color: #616161 !important;
+.swal2-html-container {
+  font-size: 1.05rem !important;
+  color: #6C757D !important;
   line-height: 1.6 !important;
+  font-weight: 500 !important;
 }
 
 .swal2-confirm {
-  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%) !important;
-  border-radius: 8px !important;
-  padding: 12px 24px !important;
-  font-weight: 500 !important;
-  text-transform: none !important;
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3) !important;
-  transition: all 0.3s ease !important;
+  background: #01A3DA !important; /* EPA Light Blue */
+  border-radius: 12px !important;
+  padding: 14px 32px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  font-size: 0.875rem !important;
+  box-shadow: 0 4px 15px rgba(1, 163, 218, 0.25) !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
 .swal2-confirm:hover {
   transform: translateY(-2px) !important;
-  box-shadow: 0 6px 16px rgba(25, 118, 210, 0.4) !important;
+  box-shadow: 0 8px 20px rgba(1, 163, 218, 0.35) !important;
+  background-color: #0190C1 !important;
 }
 
 .swal2-cancel {
-  background: #f5f5f5 !important;
-  color: #616161 !important;
-  border-radius: 8px !important;
-  padding: 12px 24px !important;
-  font-weight: 500 !important;
-  text-transform: none !important;
-  border: 1px solid #e0e0e0 !important;
+  background: #FFFFFF !important;
+  color: #6C757D !important;
+  border-radius: 12px !important;
+  padding: 14px 32px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 1px !important;
+  font-size: 0.875rem !important;
+  border: 2px solid #E9ECEF !important;
   transition: all 0.3s ease !important;
 }
 
 .swal2-cancel:hover {
-  background: #eeeeee !important;
-  transform: translateY(-2px) !important;
+  background: #F8F9FA !important;
+  border-color: #ADB5BD !important;
+  color: #495057 !important;
 }
 
 .swal2-icon {
-  margin: 1.5rem auto 1rem !important;
+  border-width: 3px !important;
+  margin: 1rem auto 1.5rem !important;
 }
 
 .swal2-success {
-  border-color: #4caf50 !important;
-  color: #4caf50 !important;
+  border-color: #10B981 !important;
+  color: #10B981 !important;
+}
+
+.swal2-success [class^='swal2-success-line'] {
+  background-color: #10B981 !important;
+}
+
+.swal2-success-ring {
+  border: .25em solid rgba(16, 185, 129, .3) !important;
 }
 
 .swal2-error {
-  border-color: #f44336 !important;
-  color: #f44336 !important;
+  border-color: #EF4444 !important;
+  color: #EF4444 !important;
 }
 
 .swal2-warning {
-  border-color: #ff9800 !important;
-  color: #ff9800 !important;
-}
-
-.swal2-info {
-  border-color: #2196f3 !important;
-  color: #2196f3 !important;
+  border-color: #F59E0B !important;
+  color: #F59E0B !important;
 }
 
 .swal2-timer-progress-bar {
-  background: linear-gradient(90deg, #1976d2, #42a5f5) !important;
+  background: #01A3DA !important;
 }
 
 /* Animation classes */

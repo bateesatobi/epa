@@ -74,6 +74,7 @@ import {
   Email,
   AccountCircle,
   PhotoCamera,
+  Search,
 } from '@mui/icons-material'
 import { usersAPI, authAPI, clientsAPI } from '../services/api'
 import { toast } from 'react-toastify'
@@ -150,7 +151,7 @@ const Users = () => {
   useEffect(() => {
     fetchUsers()
     fetchRoles()
-    if (tabValue === 4) {
+    if (tabValue === 2) {
       fetchClients()
     }
   }, [tabValue])
@@ -401,6 +402,60 @@ const Users = () => {
     }
   }
 
+  const handleDeactivateClient = async (clientId) => {
+    const result = await showConfirmDialog(
+      'Deactivate Client',
+      'Are you sure you want to deactivate this client account? They will not be able to access the mobile application.',
+      'Yes, Deactivate'
+    )
+    if (result.isConfirmed) {
+      const loadingAlert = showLoadingAlert('Deactivating Client...', 'Please wait')
+      try {
+        await clientsAPI.deactivate(clientId)
+        closeAlert()
+        await showSuccessAlert('Client Deactivated', 'The client account has been successfully deactivated')
+        fetchClients()
+      } catch (error) {
+        closeAlert()
+        showErrorAlert('Failed', 'Failed to deactivate client')
+      }
+    }
+  }
+
+  const handleActivateClient = async (clientId) => {
+    const loadingAlert = showLoadingAlert('Activating Client...', 'Please wait')
+    try {
+      await clientsAPI.activate(clientId)
+      closeAlert()
+      await showSuccessAlert('Client Activated', 'The client account has been successfully activated')
+      fetchClients()
+    } catch (error) {
+      closeAlert()
+      showErrorAlert('Failed', 'Failed to activate client')
+    }
+  }
+
+  const handleDeleteClient = async (clientId) => {
+    const result = await showConfirmDialog(
+      'Delete Client Account',
+      'Are you sure you want to delete this client account? This action cannot be undone. The record will be soft-deleted.',
+      'Yes, Delete',
+      'Cancel'
+    )
+    if (result.isConfirmed) {
+      const loadingAlert = showLoadingAlert('Deleting Client...', 'Please wait')
+      try {
+        await clientsAPI.delete(clientId)
+        closeAlert()
+        await showSuccessAlert('Client Deleted', 'The client account has been successfully deleted')
+        fetchClients()
+      } catch (error) {
+        closeAlert()
+        showErrorAlert('Failed', error.response?.data?.detail || 'Failed to delete client account')
+      }
+    }
+  }
+
   const handleOpenPasswordDialog = (user = null) => {
     setEditingUser(user)
     setPasswordData({
@@ -640,88 +695,99 @@ const Users = () => {
   }
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Stack direction="row" spacing={1.5} alignItems="center">
-          <Avatar
-            variant="rounded"
-            sx={{
-              width: 48,
-              height: 48,
-              bgcolor: 'secondary.light',
-              color: 'secondary.dark',
-              boxShadow: '0 8px 22px rgba(156,39,176,0.25)',
+    <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: '#FFFFFF', minHeight: '100vh' }}>
+      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 800, color: '#000', letterSpacing: '-0.02em', mb: 1 }}>
+            User Management
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, maxWidth: 600 }}>
+            Manage administrative access, field staff credentials, and client account verifications from a central security hub.
+          </Typography>
+        </Box>
+        <Stack direction="row" spacing={1.5}>
+          <Button
+            variant="outlined"
+            startIcon={<Security />}
+            onClick={() => handleOpenRoleDialog()}
+            sx={{ 
+              borderRadius: 2, textTransform: 'none', fontWeight: 600,
+              borderColor: '#EEEEEE', color: '#000', px: 2,
+              '&:hover': { borderColor: '#000', bgcolor: 'transparent' }
             }}
           >
-            <Group />
-          </Avatar>
-          <Box>
-            <Typography variant="h4" fontWeight="bold" sx={{ mb: 0 }}>
-              User Management
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              Control account access, roles, and activation status across the fleet
-            </Typography>
-          </Box>
-        </Stack>
-        <Stack direction="row" spacing={1}>
-          <Tooltip title="View statistics" arrow>
-            <Button
-              variant="outlined"
-              startIcon={<BarChart />}
-              onClick={handleViewStatistics}
-            >
-              Statistics
-            </Button>
-          </Tooltip>
-          <Tooltip title="Bulk operations" arrow>
-            <span>
-              <Button
-                variant="outlined"
-                startIcon={<People />}
-                onClick={() => setOpenBulkDialog(true)}
-                disabled={selectedUsers.length === 0}
-              >
-                Bulk ({selectedUsers.length})
-              </Button>
-            </span>
-          </Tooltip>
-          <Tooltip title="Manage roles" arrow>
-            <Button
-              variant="outlined"
-              startIcon={<Security />}
-              onClick={() => handleOpenRoleDialog()}
-            >
-              Roles
-            </Button>
-          </Tooltip>
-          <Tooltip title="Add a new platform user" arrow>
-            <Button
-              variant="contained"
-              startIcon={<Add />}
-              onClick={() => handleOpenDialog()}
-            >
-              Add User
-            </Button>
-          </Tooltip>
+            Manage Roles
+          </Button>
+          <Button
+            variant="contained"
+            disableElevation
+            startIcon={<Add />}
+            onClick={() => handleOpenDialog()}
+            sx={{ 
+              borderRadius: 2, textTransform: 'none', fontWeight: 600,
+              bgcolor: '#01A3DA', color: '#fff', px: 3,
+              '&:hover': { bgcolor: '#0088b8' }
+            }}
+          >
+            Add New User
+          </Button>
         </Stack>
       </Box>
 
-      <Paper sx={{ mb: 2 }}>
+      <Grid container spacing={3} sx={{ mb: 4 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid #F0F0F0', bgcolor: '#FAFAFA' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+              Total Users
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, mt: 1, color: '#000' }}>
+              {users.length}
+            </Typography>
+          </Paper>
+        </Grid>
+        <Grid item xs={12} sm={6} md={3}>
+          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid #F0F0F0', bgcolor: '#FAFAFA' }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
+              Active Sessions
+            </Typography>
+            <Typography variant="h4" sx={{ fontWeight: 800, mt: 1, color: '#01A3DA' }}>
+              {users.filter(u => u.is_active).length}
+            </Typography>
+          </Paper>
+        </Grid>
+      </Grid>
+
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Tabs
           value={tabValue}
           onChange={(e, newValue) => setTabValue(newValue)}
-          sx={{ borderBottom: 1, borderColor: 'divider' }}
+          sx={{ 
+            '& .MuiTabs-indicator': { bgcolor: '#01A3DA', height: 3, borderRadius: '3px 3px 0 0' },
+            '& .MuiTab-root': { 
+              textTransform: 'none', 
+              fontWeight: 600, 
+              fontSize: '0.95rem',
+              color: 'text.secondary',
+              minWidth: 100,
+              '&.Mui-selected': { color: '#000' }
+            }
+          }}
         >
-          <Tab label="All Users" />
-          <Tab label="Active" />
-          <Tab label="Inactive" />
-          <Tab label="Field Staff" />
-          <Tab label="Clients" />
+          <Tab label="All Directory" />
+          <Tab label="Field Agents" />
+          <Tab label="Client Accounts" />
+          <Tab label="Administrators" />
         </Tabs>
-      </Paper>
+        
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <IconButton onClick={fetchUsers} size="small" sx={{ border: '1px solid #eee', borderRadius: 2 }}>
+            <Refresh fontSize="small" />
+          </IconButton>
+        </Box>
+      </Box>
 
-      <DataTable
+      {tabValue !== 2 && (
+        <DataTable
         columns={[
           {
             field: 'select',
@@ -799,17 +865,25 @@ const Users = () => {
           },
           {
             field: 'roles',
-            headerName: 'Roles',
+            headerName: 'Designation',
             render: (row) => (
               <Stack direction="row" spacing={0.5} flexWrap="wrap">
                 {row.roles?.map((role) => (
                   <Chip
                     key={role.id}
-                    icon={roleIconMap[role.name] || undefined}
-                    label={role.name.replace('-', ' ').toUpperCase()}
+                    label={role.name.replace('-', ' ')}
                     size="small"
-                    sx={{ mr: 0.5, mb: 0.5 }}
-                    color={role.name === 'admin' ? 'primary' : 'default'}
+                    sx={{ 
+                      borderRadius: '6px', 
+                      fontSize: '0.7rem', 
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.5,
+                      bgcolor: role.name === 'admin' ? 'rgba(0,0,0,0.05)' : 'rgba(1, 163, 218, 0.08)',
+                      color: role.name === 'admin' ? '#000' : '#01A3DA',
+                      border: '1px solid transparent',
+                      '&:hover': { bgcolor: 'rgba(0,0,0,0.1)' }
+                    }}
                   />
                 ))}
               </Stack>
@@ -819,12 +893,18 @@ const Users = () => {
             field: 'is_active',
             headerName: 'Status',
             render: (row) => (
-              <Chip
-                icon={row.is_active ? <CheckCircle /> : <Cancel />}
-                label={row.is_active ? 'Active' : 'Inactive'}
-                color={row.is_active ? 'success' : 'default'}
-                size="small"
-              />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box 
+                  sx={{ 
+                    width: 8, height: 8, borderRadius: '50%', 
+                    bgcolor: row.is_active ? '#01A3DA' : '#EEEEEE',
+                    boxShadow: row.is_active ? '0 0 10px rgba(1, 163, 218, 0.5)' : 'none'
+                  }} 
+                />
+                <Typography variant="caption" sx={{ fontWeight: 600, color: row.is_active ? '#000' : 'text.disabled' }}>
+                  {row.is_active ? 'Active' : 'Offline'}
+                </Typography>
+              </Box>
             ),
           },
           {
@@ -847,12 +927,9 @@ const Users = () => {
           },
         ]}
         data={users.filter((user) => {
-          if (tabValue === 1) return user.is_active
-          if (tabValue === 2) return !user.is_active
-          if (tabValue === 3)
-            return user.roles?.some((r) => r.name === 'field-staff')
-          if (tabValue === 4)
-            return user.roles?.some((r) => r.name === 'client')
+          if (tabValue === 1) return user.roles?.some((r) => r.name === 'field-staff')
+          if (tabValue === 2) return user.roles?.some((r) => r.name === 'client')
+          if (tabValue === 3) return user.roles?.some((r) => r.name === 'admin')
           return true
         })}
         loading={loading}
@@ -861,6 +938,7 @@ const Users = () => {
         onExport={() => toast.info('Export functionality coming soon')}
         onRefresh={fetchUsers}
       />
+      )}
 
       {/* View User Dialog */}
       <FormDialog
@@ -1588,8 +1666,8 @@ const Users = () => {
         </MenuItem>
       </Menu>
 
-      {/* Clients Table (when Clients tab is selected) */}
-      {tabValue === 4 && (
+      {/* Clients Table (when Client Accounts tab is selected) */}
+      {tabValue === 2 && (
         <DataTable
           columns={[
             {
@@ -1684,20 +1762,52 @@ const Users = () => {
                   </Tooltip>
                   {row.status === 'pending' && (
                     <Tooltip title="Approve/Reject">
-                      <span>
-                        <IconButton
-                          size="small"
-                          onClick={() => {
-                            setViewingClient(row)
-                            setOpenClientApproveDialog(true)
-                          }}
-                          color="primary"
-                        >
-                          <CheckCircle fontSize="small" />
-                        </IconButton>
-                      </span>
+                      <IconButton
+                        size="small"
+                        onClick={() => {
+                          setViewingClient(row)
+                          setOpenClientApproveDialog(true)
+                        }}
+                        color="success"
+                      >
+                        <CheckCircle fontSize="small" />
+                      </IconButton>
                     </Tooltip>
                   )}
+                  {row.status === 'approved' && (
+                    <>
+                      {row.is_active ? (
+                        <Tooltip title="Deactivate account">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeactivateClient(row.id)}
+                            color="warning"
+                          >
+                            <Block fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      ) : (
+                        <Tooltip title="Activate account">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleActivateClient(row.id)}
+                            color="success"
+                          >
+                            <CheckCircle fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </>
+                  )}
+                  <Tooltip title="Delete account">
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDeleteClient(row.id)}
+                      color="error"
+                    >
+                      <Delete fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
                 </Stack>
               ),
             },

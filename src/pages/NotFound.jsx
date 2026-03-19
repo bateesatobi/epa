@@ -13,86 +13,79 @@ const NotFound = () => {
                           location.pathname !== '/client-register'
 
   return (
-    <Box sx={{ width: '100%', py: 8 }}>
+    <Box sx={{ width: '100%', py: 8, bgcolor: '#FFFFFF', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Box
           sx={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            minHeight: '60vh',
             textAlign: 'center',
-            py: 8,
+            p: 4,
+            maxWidth: 500,
           }}
         >
-          <Paper
-            elevation={0}
+          <Box
             sx={{
-              p: 6,
-              borderRadius: 3,
-              background: 'linear-gradient(135deg, rgba(25, 118, 210, 0.08) 0%, rgba(25, 118, 210, 0.02) 100%)',
-              border: '1px solid rgba(25, 118, 210, 0.1)',
-              maxWidth: 600,
+              width: 100,
+              height: 100,
+              borderRadius: '24px',
+              bgcolor: 'rgba(0,0,0,0.02)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              mx: 'auto',
+              mb: 4,
+              border: '1px solid #F0F0F0'
             }}
           >
-            <Box
-              sx={{
-                width: 120,
-                height: 120,
-                borderRadius: '50%',
-                background: 'linear-gradient(135deg, rgba(211, 47, 47, 0.1) 0%, rgba(211, 47, 47, 0.05) 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                mx: 'auto',
-                mb: 3,
+            <ErrorOutline sx={{ fontSize: 48, color: '#000' }} />
+          </Box>
+          
+          <Typography variant="h2" sx={{ fontWeight: 800, color: '#01A3DA', mb: 1, letterSpacing: '-0.02em' }}>
+            404
+          </Typography>
+          
+          <Typography variant="h5" sx={{ fontWeight: 700, color: '#000', mb: 2 }}>
+            Protocol Gap Detected
+          </Typography>
+          
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 5, fontWeight: 500, lineHeight: 1.6 }}>
+            The requested coordinate does not exist within the current operational grid. 
+            Please verify the URL or return to the central command deck.
+          </Typography>
+          
+          <Stack direction="row" spacing={2} justifyContent="center">
+            {isProtectedRoute && (
+              <Button
+                variant="contained"
+                disableElevation
+                startIcon={<Home />}
+                onClick={() => navigate('/')}
+                sx={{ 
+                  borderRadius: 2, textTransform: 'none', fontWeight: 600,
+                  bgcolor: '#01A3DA', px: 3, py: 1.2,
+                  '&:hover': { bgcolor: '#0088b8' }
+                }}
+              >
+                Go to Dashboard
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              startIcon={<ArrowBack />}
+              onClick={() => {
+                if (window.history.length > 1) {
+                  navigate(-1)
+                } else {
+                  navigate(isProtectedRoute ? '/' : '/login')
+                }
+              }}
+              sx={{ 
+                borderRadius: 2, textTransform: 'none', fontWeight: 600,
+                borderColor: '#EEEEEE', color: '#000', px: 3,
+                '&:hover': { borderColor: '#000', bgcolor: 'transparent' }
               }}
             >
-              <ErrorOutline sx={{ fontSize: 64, color: 'error.main' }} />
-            </Box>
-            
-            <Typography variant="h3" fontWeight="bold" gutterBottom>
-              404
-            </Typography>
-            
-            <Typography variant="h5" color="text.secondary" gutterBottom sx={{ mb: 2 }}>
-              Page Not Found
-            </Typography>
-            
-            <Typography variant="body1" color="text.secondary" sx={{ mb: 4, maxWidth: 400, mx: 'auto' }}>
-              The page you're looking for doesn't exist or has been moved. 
-              Please check the URL or navigate back to the dashboard.
-            </Typography>
-            
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-              {isProtectedRoute && (
-                <Button
-                  variant="contained"
-                  startIcon={<Home />}
-                  onClick={() => navigate('/')}
-                  size="large"
-                  sx={{ minWidth: 160 }}
-                >
-                  Go to Dashboard
-                </Button>
-              )}
-              <Button
-                variant={isProtectedRoute ? "outlined" : "contained"}
-                startIcon={<ArrowBack />}
-                onClick={() => {
-                  if (window.history.length > 1) {
-                    navigate(-1)
-                  } else {
-                    navigate(isProtectedRoute ? '/' : '/login')
-                  }
-                }}
-                size="large"
-                sx={{ minWidth: 160 }}
-              >
-                Go Back
-              </Button>
-            </Box>
-          </Paper>
+              Go Back
+            </Button>
+          </Stack>
         </Box>
     </Box>
   )

@@ -1,13 +1,11 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Box } from '@mui/material'
 
 /**
- * EPA Logo Component - SVG-based logo that always works
+ * EPA Logo Component - Professional branding component
  * 
  * Usage:
  * <EPALogo width={150} height={50} />
- * 
- * This component creates a professional logo using SVG instead of image files
  */
 
 const EPALogo = ({ 
@@ -16,29 +14,31 @@ const EPALogo = ({
   variant = 'default', // 'default', 'white', 'dark', 'compact'
   sx = {} 
 }) => {
+  const [imgError, setImgError] = useState(false)
+  
   // Calculate height if auto
   const logoHeight = height === 'auto' ? width * 0.4 : height
   
-  // Color scheme based on variant
+  // Color scheme for SVG fallback
   const getColors = () => {
     switch (variant) {
       case 'white':
         return {
           primary: '#FFFFFF',
           secondary: '#F0F0F0',
-          accent: '#E0E0E0',
+          accent: '#01A3DA',
         }
       case 'dark':
         return {
-          primary: '#1a1a1a',
+          primary: '#000000',
           secondary: '#333333',
-          accent: '#4a4a4a',
+          accent: '#01A3DA',
         }
       default:
         return {
-          primary: '#1976d2', // Material-UI primary blue
-          secondary: '#1565c0',
-          accent: '#0d47a1',
+          primary: '#01A3DA',
+          secondary: '#000000',
+          accent: '#01A3DA',
         }
     }
   }
@@ -53,6 +53,7 @@ const EPALogo = ({
         justifyContent: 'center',
         width: width,
         height: logoHeight,
+        transition: 'all 0.3s ease',
         ...sx,
       }}
     >
@@ -61,62 +62,72 @@ const EPALogo = ({
         height={logoHeight}
         viewBox="0 0 240 80"
         xmlns="http://www.w3.org/2000/svg"
-        style={{ display: 'block' }}
+        style={{ display: 'block', width: '100%', height: '100%' }}
       >
         <defs>
           <linearGradient id={`epaGradient-${variant}`} x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" style={{ stopColor: colors.primary, stopOpacity: 1 }} />
-            <stop offset="100%" style={{ stopColor: colors.secondary, stopOpacity: 1 }} />
+            <stop offset="100%" style={{ stopColor: colors.accent, stopOpacity: 1 }} />
+          </linearGradient>
+          
+          <linearGradient id={`epaGradientLight-${variant}`} x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style={{ stopColor: colors.accent, stopOpacity: 0.8 }} />
+            <stop offset="100%" style={{ stopColor: colors.primary, stopOpacity: 0.9 }} />
           </linearGradient>
         </defs>
         
-        {/* Icon/Logo Mark - Professional geometric design */}
-        <g transform="translate(5, 15)">
-          {/* Main "E" shape with modern styling */}
-          <rect x="0" y="0" width="4" height="50" rx="2" fill={colors.primary} />
-          <rect x="0" y="0" width="30" height="4" rx="2" fill={colors.primary} />
-          <rect x="0" y="23" width="25" height="4" rx="2" fill={colors.primary} />
-          <rect x="0" y="46" width="30" height="4" rx="2" fill={colors.primary} />
-          
-          {/* Forward arrow indicating movement/speed */}
+        {/* Shield / Badge Icon */}
+        <g transform="translate(10, 15)">
+          {/* Outer Shield */}
           <path
-            d="M 35 25 L 42 25 L 38.5 18 Z"
-            fill={colors.accent}
+            d="M 25 0 L 50 10 L 50 25 C 50 40 38 52 25 58 C 12 52 0 40 0 25 L 0 10 Z"
+            fill="none"
+            stroke={`url(#epaGradient-${variant})`}
+            strokeWidth="3"
           />
+          {/* Inner Shield Element */}
           <path
-            d="M 35 25 L 42 25 L 38.5 32 Z"
-            fill={colors.accent}
+            d="M 25 6 L 42 13 L 42 25 C 42 36 33 45 25 50 C 17 45 8 36 8 25 L 8 13 Z"
+            fill={`url(#epaGradientLight-${variant})`}
+            opacity="0.85"
+          />
+          {/* Checkmark inside shield */}
+          <path
+            d="M 16 26 L 22 32 L 34 18"
+            fill="none"
+            stroke={variant === 'white' ? '#0A192F' : '#FFFFFF'}
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </g>
 
-        {/* Text: EPA - Bold and professional */}
+        {/* Typography: EPA */}
         <text
-          x="55"
+          x="75"
           y="48"
-          fontSize={variant === 'compact' ? '24' : '36'}
-          fontWeight="800"
-          fontFamily="'Segoe UI', 'Roboto', 'Arial', sans-serif"
+          fontSize="46"
+          fontWeight="900"
+          fontFamily="'Inter', 'Segoe UI', 'Roboto', sans-serif"
           fill={colors.primary}
-          letterSpacing="3px"
+          letterSpacing="-1px"
         >
           EPA
         </text>
 
-        {/* Subtitle: COURIERS (if not compact) */}
-        {variant !== 'compact' && (
-          <text
-            x="55"
-            y="62"
-            fontSize="11"
-            fontWeight="600"
-            fontFamily="'Segoe UI', 'Roboto', 'Arial', sans-serif"
-            fill={colors.secondary}
-            letterSpacing="2px"
-            opacity={0.85}
-          >
-            COURIERS
-          </text>
-        )}
+        {/* Subtitle: LOGISTICS COCKPIT */}
+        <text
+          x="77"
+          y="64"
+          fontSize="11"
+          fontWeight="700"
+          fontFamily="'Inter', 'Segoe UI', 'Roboto', sans-serif"
+          fill={colors.accent}
+          letterSpacing="2.5px"
+          opacity={0.9}
+        >
+          LOGISTICS COCKPIT
+        </text>
       </svg>
     </Box>
   )

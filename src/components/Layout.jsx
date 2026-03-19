@@ -283,22 +283,22 @@ const Layout = () => {
         display: 'flex', 
         flexDirection: 'column', 
         position: 'relative',
-        backgroundColor: '#350D36', // Slack's dark purple background
-        color: 'white',
+        backgroundColor: '#0A192F', // Deep professional corporate blue
+        color: '#FFFFFF',
       }}
     >
-      {/* Logo Section - Slack-style header */}
+      {/* Logo Section */}
       <Box
         sx={{
-          backgroundColor: '#350D36',
-          color: 'white',
-          p: sidebarExpanded ? 2 : 1.5,
+          backgroundColor: '#061020', // Darker navy for header
+          color: '#FFFFFF',
+          p: sidebarExpanded ? 2.5 : 1.5,
           display: 'flex',
           alignItems: 'center',
           justifyContent: sidebarExpanded ? 'flex-start' : 'center',
-          gap: sidebarExpanded ? 1.5 : 0,
-          minHeight: 60,
-          borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+          gap: sidebarExpanded ? 2 : 0,
+          minHeight: 70,
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
           transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
@@ -308,69 +308,53 @@ const Layout = () => {
             alignItems: 'center',
             justifyContent: 'center',
             flexShrink: 0,
-            width: sidebarExpanded ? 'auto' : 36,
-            height: 36,
+            width: sidebarExpanded ? '100%' : 44,
+            height: 48,
           }}
         >
           {sidebarExpanded ? (
-            <EPALogo width={100} height={32} variant="white" sx={{ maxWidth: '100%' }} />
+            <EPALogo width={160} height={48} variant="white" sx={{ maxWidth: '100%' }} />
           ) : (
             <Box
               sx={{
-                width: 36,
-                height: 36,
-                borderRadius: 1,
-                background: 'rgba(255,255,255,0.1)',
+                width: 44,
+                height: 44,
+                borderRadius: 1.5,
+                background: 'rgba(255,255,255,0.05)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 transition: 'all 0.2s ease',
                 '&:hover': {
-                  background: 'rgba(255,255,255,0.15)',
+                  background: 'rgba(255,255,255,0.1)',
                 },
                 overflow: 'hidden',
               }}
             >
-              <EPALogo width={28} height={28} variant="white" sx={{ maxWidth: '100%' }} />
+              <EPALogo width={32} height={32} variant="white" sx={{ maxWidth: '100%' }} />
             </Box>
           )}
         </Box>
-        {sidebarExpanded && (
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography 
-              variant="caption" 
-              sx={{ 
-                opacity: 0.8, 
-                fontSize: '0.65rem', 
-                display: 'block',
-                fontWeight: 500,
-                letterSpacing: '0.5px',
-              }}
-            >
-              EPA COCKPIT
-            </Typography>
-          </Box>
-        )}
       </Box>
       
       {/* Expand/Collapse Button - Slack-style */}
-      <IconButton
-        onClick={handleSidebarToggle}
-        sx={{
-          position: 'absolute',
-          top: 60,
-          right: -14,
-          zIndex: 1300,
-          width: 28,
-          height: 28,
-          backgroundColor: 'white',
-          border: 'none',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-          color: '#350D36',
-          '&:hover': {
-            backgroundColor: '#f5f5f5',
-            transform: 'scale(1.08)',
-          },
+        <IconButton
+          onClick={handleSidebarToggle}
+          sx={{
+            position: 'absolute',
+            top: 55,
+            right: -14,
+            zIndex: 1300,
+            width: 28,
+            height: 28,
+            backgroundColor: '#FFFFFF',
+            border: 'none',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            color: '#0A192F',
+            '&:hover': {
+              backgroundColor: '#F8F9FA',
+              transform: 'scale(1.08)',
+            },
           transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
@@ -608,44 +592,6 @@ const Layout = () => {
           {/* Spacer to push items to the right */}
           <Box sx={{ flexGrow: 1 }} />
 
-          {/* Search Bar */}
-          <Box
-            sx={{
-              display: { xs: 'none', md: 'flex' },
-              position: 'relative',
-              borderRadius: 2,
-              backgroundColor: alpha('#1e3c72', 0.06),
-              '&:hover': {
-                backgroundColor: alpha('#1e3c72', 0.1),
-              },
-              width: { md: '300px', lg: '400px' },
-              mr: 2,
-              transition: 'all 0.2s',
-            }}
-          >
-            <Box
-              sx={{
-                padding: '8px 12px',
-                display: 'flex',
-                alignItems: 'center',
-                pointerEvents: 'none',
-              }}
-            >
-              <Search sx={{ color: 'text.secondary', fontSize: 20 }} />
-            </Box>
-            <InputBase
-              placeholder="Search consignments, users..."
-              sx={{
-                flex: 1,
-                color: 'text.primary',
-                '& .MuiInputBase-input': {
-                  padding: '8px 8px 8px 0',
-                  fontSize: '0.9rem',
-                },
-              }}
-            />
-          </Box>
-
           {/* Notifications */}
           <Tooltip title="Notifications">
             <IconButton 
@@ -655,7 +601,7 @@ const Layout = () => {
                 mr: 1,
                 color: 'text.secondary',
                 '&:hover': {
-                  backgroundColor: alpha('#1e3c72', 0.08),
+                  backgroundColor: (theme) => alpha(theme.palette.primary.main, 0.08),
                   color: 'primary.main',
                 },
               }}
@@ -887,7 +833,7 @@ const Layout = () => {
             '& .MuiDrawer-paper': {
               boxSizing: 'border-box',
               width: drawerWidth,
-              backgroundColor: '#350D36',
+              backgroundColor: '#0A192F', // Deep Blue overriding original inline color
               borderRight: 'none',
             },
           }}
@@ -904,7 +850,7 @@ const Layout = () => {
               transition: 'width 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
               overflowX: 'hidden',
               borderRight: 'none',
-              backgroundColor: '#350D36',
+              backgroundColor: '#0A192F', // Deep Blue overriding original inline color
             },
           }}
           open

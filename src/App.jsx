@@ -74,9 +74,10 @@ function AppRoutes() {
         <Route path="notifications" element={<Notifications />} />
         <Route path="depots" element={<Depots />} />
         <Route path="clearance-activities" element={<ClearanceActivities />} />
+        {/* Unmatched sub-routes show NotFound */}
         <Route path="*" element={<NotFound />} />
       </Route>
-      {/* Catch-all for routes outside protected area */}
+      {/* Completely unmatched top-level routes redirect to login */}
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   )

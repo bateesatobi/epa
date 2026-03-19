@@ -28,17 +28,19 @@ Swal.mixin({
 export const showSuccessAlert = (title, text = '') => {
   return Swal.fire({
     icon: 'success',
-    title,
-    text,
-    confirmButtonText: 'OK',
-    confirmButtonColor: '#1976d2',
-    timer: 3000,
+    title: `<span style="font-family: Inter, sans-serif; font-weight: 700; font-size: 1.25rem;">${title}</span>`,
+    html: `<span style="font-family: Inter, sans-serif; font-weight: 500; color: #64748B;">${text}</span>`,
+    confirmButtonText: 'Continue',
+    confirmButtonColor: '#01A3DA',
+    timer: 4000,
     timerProgressBar: true,
+    padding: '2rem',
+    borderRadius: '16px',
     showClass: {
-      popup: 'animate__animated animate__fadeInDown',
+      popup: 'animate__animated animate__fadeInDown animate__faster',
     },
     hideClass: {
-      popup: 'animate__animated animate__fadeOutUp',
+      popup: 'animate__animated animate__fadeOutUp animate__faster',
     },
   })
 }
@@ -46,12 +48,14 @@ export const showSuccessAlert = (title, text = '') => {
 export const showErrorAlert = (title, text = '') => {
   return Swal.fire({
     icon: 'error',
-    title,
-    text,
-    confirmButtonText: 'OK',
-    confirmButtonColor: '#d32f2f',
+    title: `<span style="font-family: Inter, sans-serif; font-weight: 700; font-size: 1.25rem;">${title}</span>`,
+    html: `<span style="font-family: Inter, sans-serif; font-weight: 500; color: #64748B;">${text}</span>`,
+    confirmButtonText: 'Got it',
+    confirmButtonColor: '#000',
+    padding: '2rem',
+    borderRadius: '16px',
     showClass: {
-      popup: 'animate__animated animate__shakeX',
+      popup: 'animate__animated animate__shakeX animate__faster',
     },
   })
 }
@@ -59,26 +63,31 @@ export const showErrorAlert = (title, text = '') => {
 export const showWarningAlert = (title, text = '') => {
   return Swal.fire({
     icon: 'warning',
-    title,
-    text,
-    confirmButtonText: 'OK',
-    confirmButtonColor: '#ed6c02',
+    title: `<span style="font-family: Inter, sans-serif; font-weight: 700; font-size: 1.25rem;">${title}</span>`,
+    html: `<span style="font-family: Inter, sans-serif; font-weight: 500; color: #64748B;">${text}</span>`,
+    confirmButtonText: 'Understood',
+    confirmButtonColor: '#01A3DA',
+    padding: '2rem',
+    borderRadius: '16px',
   })
 }
 
 export const showConfirmDialog = (title, text = '', confirmText = 'Yes, proceed') => {
   return Swal.fire({
-    title,
-    text,
+    title: `<span style="font-family: Inter, sans-serif; font-weight: 700; font-size: 1.25rem;">${title}</span>`,
+    html: `<span style="font-family: Inter, sans-serif; font-weight: 500; color: #64748B;">${text}</span>`,
     icon: 'question',
     showCancelButton: true,
     confirmButtonText: confirmText,
     cancelButtonText: 'Cancel',
-    confirmButtonColor: '#1976d2',
-    cancelButtonColor: '#6c757d',
+    confirmButtonColor: '#01A3DA',
+    cancelButtonColor: '#F1F5F9',
+    cancelButtonTextColor: '#64748B',
     reverseButtons: true,
+    padding: '2rem',
+    borderRadius: '16px',
     showClass: {
-      popup: 'animate__animated animate__zoomIn',
+      popup: 'animate__animated animate__zoomIn animate__faster',
     },
   })
 }
@@ -86,11 +95,31 @@ export const showConfirmDialog = (title, text = '', confirmText = 'Yes, proceed'
 export const showInfoAlert = (title, text = '') => {
   return Swal.fire({
     icon: 'info',
-    title,
-    text,
-    confirmButtonText: 'OK',
-    confirmButtonColor: '#1976d2',
+    title: `<span style="font-family: Inter, sans-serif; font-weight: 700; font-size: 1.25rem;">${title}</span>`,
+    html: `<span style="font-family: Inter, sans-serif; font-weight: 500; color: #64748B;">${text}</span>`,
+    confirmButtonText: 'Okay',
+    confirmButtonColor: '#01A3DA',
+    padding: '2rem',
+    borderRadius: '16px',
   })
+}
+
+export const showLoadingAlert = (title, text = '') => {
+  return Swal.fire({
+    title: `<span style="font-family: Inter, sans-serif; font-weight: 700; font-size: 1.25rem;">${title}</span>`,
+    html: `<span style="font-family: Inter, sans-serif; font-weight: 500; color: #64748B;">${text}</span>`,
+    allowOutsideClick: false,
+    showConfirmButton: false,
+    padding: '2rem',
+    borderRadius: '16px',
+    didOpen: () => {
+      Swal.showLoading()
+    },
+  })
+}
+
+export const closeAlert = () => {
+  Swal.close()
 }
 
 const FormDialog = ({
@@ -152,7 +181,37 @@ const FormDialog = ({
         {titleContent}
       </DialogTitle>
       <DialogContent sx={{ pt: 3 }}>
-        <Box component="form" onSubmit={handleSubmit} noValidate>
+        <Box
+          component="form"
+          onSubmit={handleSubmit}
+          noValidate
+          sx={{ // Applied TextField styles to the Box containing children
+            '& .MuiOutlinedInput-root': {
+              borderRadius: '12px',
+              bgcolor: '#FAFBFC',
+              '& fieldset': {
+                borderColor: '#E2E8F0',
+              },
+              '&:hover fieldset': {
+                borderColor: '#01A3DA',
+              },
+              '&.Mui-focused': {
+                bgcolor: '#FFFFFF',
+              },
+              '&.Mui-focused fieldset': {
+                borderColor: '#01A3DA',
+                borderWidth: 2,
+              },
+            },
+            '& .MuiInputLabel-root': {
+              fontSize: '0.9rem',
+              color: 'text.secondary',
+            },
+            '& .MuiInputLabel-root.Mui-focused': {
+              color: '#01A3DA',
+            },
+          }}
+        >
           {children}
         </Box>
       </DialogContent>
@@ -170,7 +229,12 @@ const FormDialog = ({
           onClick={onClose}
           disabled={loading}
           variant="outlined"
-          sx={{ minWidth: 100 }}
+          sx={{ 
+            minWidth: 100, borderRadius: 2, 
+            textTransform: 'none', fontWeight: 600,
+            borderColor: '#EEEEEE', color: 'text.secondary',
+            '&:hover': { borderColor: '#000', color: '#000', bgcolor: 'transparent' }
+          }}
         >
           {cancelText}
         </Button>
@@ -178,9 +242,15 @@ const FormDialog = ({
           <Button
             onClick={handleSubmit}
             variant="contained"
+            disableElevation
             disabled={loading}
             startIcon={loading ? <CircularProgress size={16} color="inherit" /> : null}
-            sx={{ minWidth: 120 }}
+            sx={{ 
+              minWidth: 120, borderRadius: 2, 
+              textTransform: 'none', fontWeight: 600,
+              bgcolor: '#01A3DA', color: '#FFF',
+              '&:hover': { bgcolor: '#0088b8' }
+            }}
             {...submitButtonProps}
           >
             {loading ? 'Processing...' : submitText}

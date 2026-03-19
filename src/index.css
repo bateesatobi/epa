@@ -22,6 +22,41 @@ code {
   min-height: 100vh;
 }
 
+/* React Toastify Custom Styling */
+.Toastify__toast {
+  border-radius: 12px !important;
+  font-family: 'Inter', sans-serif !important;
+  padding: 16px !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+}
+
+.Toastify__toast--success {
+  background: #FFFFFF !important;
+  border-left: 4px solid #10B981 !important;
+  color: #1A1A1A !important;
+}
+
+.Toastify__toast--error {
+  background: #FFFFFF !important;
+  border-left: 4px solid #EF4444 !important;
+  color: #1A1A1A !important;
+}
+
+.Toastify__toast--info {
+  background: #FFFFFF !important;
+  border-left: 4px solid #01A3DA !important;
+  color: #1A1A1A !important;
+}
+
+.Toastify__toast-body {
+  font-weight: 600 !important;
+  font-size: 0.95rem !important;
+}
+
+.Toastify__close-button {
+  color: #ADB5BD !important;
+}
+
 
 
 

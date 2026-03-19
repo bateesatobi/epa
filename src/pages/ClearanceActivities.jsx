@@ -262,26 +262,32 @@ const ClearanceActivities = () => {
   }
 
   return (
-    <Box>
+    <Box sx={{ p: { xs: 2, md: 4 }, bgcolor: '#FFFFFF', minHeight: '100vh' }}>
       {loading && activities.length > 0 && (
-        <LoadingOverlay message="Refreshing activities..." />
+        <LoadingOverlay message="Refreshing operations..." />
       )}
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 5 }}>
         <Box>
-          <Typography variant="h4" fontWeight="bold" gutterBottom>
-            Clearance Activities Management
+          <Typography variant="h4" sx={{ fontWeight: 800, color: '#000', letterSpacing: '-0.02em', mb: 1 }}>
+            Clearance Protocol
           </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Manage shipment clearance stages and their order. Drag or use arrows to reorder.
+          <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 500, maxWidth: 600 }}>
+            Define and sequencer the operational checkpoints required for successful consignment clearance. 
+            Adjust priorities to reorder the global shipment workflow.
           </Typography>
         </Box>
         <Button
           variant="contained"
+          disableElevation
           startIcon={<Add />}
           onClick={() => handleOpenDialog()}
-          sx={{ borderRadius: 2 }}
+          sx={{ 
+            borderRadius: 2, textTransform: 'none', fontWeight: 600,
+            bgcolor: '#01A3DA', px: 3, py: 1,
+            '&:hover': { bgcolor: '#0088b8' }
+          }}
         >
-          Add Activity
+          Add Protocol Stage
         </Button>
       </Box>
 
@@ -320,10 +326,13 @@ const ClearanceActivities = () => {
                       }}
                     >
                       <Chip
-                        label={`#${activity.priority}`}
+                        label={`${activity.priority}`}
                         size="small"
-                        color="primary"
-                        sx={{ fontWeight: 600, mb: 0.5 }}
+                        sx={{ 
+                          fontWeight: 700, mb: 1, 
+                          bgcolor: 'rgba(1, 163, 218, 0.08)', color: '#01A3DA',
+                          borderRadius: '6px'
+                        }}
                       />
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                         <Tooltip title="Move up">
@@ -360,15 +369,18 @@ const ClearanceActivities = () => {
                     <Box sx={{ flex: 1 }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
                         <Timeline fontSize="small" color="primary" />
-                        <Typography variant="h6" fontWeight={600}>
+                        <Typography variant="h6" sx={{ fontWeight: 700, color: '#000' }}>
                           {activity.name}
                         </Typography>
                         <Chip
-                          label={activity.is_active ? 'Active' : 'Inactive'}
+                          label={activity.is_active ? 'Active' : 'Archived'}
                           size="small"
-                          color={activity.is_active ? 'success' : 'default'}
-                          icon={activity.is_active ? <CheckCircle /> : <Cancel />}
-                          sx={{ ml: 'auto' }}
+                          sx={{ 
+                            ml: 'auto', borderRadius: '6px', fontSize: '0.7rem', fontWeight: 700,
+                            bgcolor: activity.is_active ? 'rgba(1, 163, 218, 0.08)' : '#F1F5F9',
+                            color: activity.is_active ? '#01A3DA' : 'text.disabled',
+                            textTransform: 'uppercase'
+                          }}
                         />
                       </Box>
                       
@@ -385,8 +397,10 @@ const ClearanceActivities = () => {
                               key={idx}
                               label={substate}
                               size="small"
-                              variant="outlined"
-                              sx={{ fontSize: '0.7rem' }}
+                              sx={{ 
+                                fontSize: '0.75rem', fontWeight: 500, bgcolor: 'transparent',
+                                border: '1px solid #E2E8F0', borderRadius: '4px'
+                              }}
                             />
                           ))}
                         </Stack>

@@ -79,12 +79,14 @@ import {
   ErrorOutline,
 } from '@mui/icons-material'
 import { complianceAPI, shipmentsAPI } from '../services/api'
-import { format } from 'date-fns'
+import { format, isToday, isYesterday } from 'date-fns'
 import { toast } from 'react-toastify'
 import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 import FormDialog from '../components/FormDialog'
 import FormTextField from '../components/FormTextField'
 import FormSelect from '../components/FormSelect'
+import ShipmentQueries from '../components/ShipmentQueries'
+import { useAuth } from '../contexts/AuthContext'
 import {
   showSuccessAlert,
   showErrorAlert,
@@ -95,6 +97,8 @@ import {
 const ComplianceDetail = () => {
   const { shipmentId } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
   const [shipment, setShipment] = useState(null)
   const [documents, setDocuments] = useState([])
   const [complianceSummary, setComplianceSummary] = useState(null)
@@ -103,20 +107,14 @@ const ComplianceDetail = () => {
   const [viewingDocument, setViewingDocument] = useState(null)
   const [openViewDialog, setOpenViewDialog] = useState(false)
   const [openUploadDialog, setOpenUploadDialog] = useState(false)
-  const [openQueryDrawer, setOpenQueryDrawer] = useState(false)
   const [openReviewDialog, setOpenReviewDialog] = useState(false)
-  const [communications, setCommunications] = useState([])
   const [documentMenu, setDocumentMenu] = useState({ anchorEl: null, document: null })
+  const queriesRef = React.useRef(null)
   
   // Document upload form - batch upload support
   const [documentFiles, setDocumentFiles] = useState({}) // { document_type: { file: File, title: string } }
   const [uploadProgress, setUploadProgress] = useState({}) // { document_type: { status: 'idle'|'uploading'|'success'|'error', progress: number } }
   const [otherDocuments, setOtherDocuments] = useState([]) // Array of { file: File, title: string, document_type: string }
-  
-  // Query/Communication form
-  const [queryForm, setQueryForm] = useState({
-    message: '',
-  })
   
   // Review form
   const [reviewForm, setReviewForm] = useState({
@@ -135,33 +133,11 @@ const ComplianceDetail = () => {
     { value: 'im8', label: 'IM8' },
   ]
 
-  const messagesEndRef = React.useRef(null)
-
   useEffect(() => {
     if (shipmentId) {
       fetchData()
     }
   }, [shipmentId])
-
-  // Auto-scroll to bottom when new messages arrive
-  useEffect(() => {
-    if (messagesEndRef.current && openQueryDrawer) {
-      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [communications, openQueryDrawer])
-
-  const fetchCommunications = async () => {
-    if (!shipment?.client_id) return
-    
-    try {
-      const comms = await complianceAPI.getClientCommunications(shipment.client_id, shipmentId)
-      // API already returns messages sorted by created_at ascending (oldest first)
-      setCommunications(comms || [])
-    } catch (error) {
-      console.error('Failed to load communications:', error)
-      setCommunications([])
-    }
-  }
 
   const fetchData = async () => {
     try {
@@ -175,11 +151,6 @@ const ComplianceDetail = () => {
       setShipment(shipmentData)
       setDocuments(documentsData || [])
       setComplianceSummary(summaryData)
-      
-      // Fetch communications after we have the shipment data
-      if (shipmentData?.client_id) {
-        await fetchCommunications()
-      }
     } catch (error) {
       toast.error('Failed to load compliance data')
       console.error('Compliance detail fetch error:', error)
@@ -397,65 +368,7 @@ const ComplianceDetail = () => {
     }
   }
 
-  const handleSendQuery = async () => {
-    if (!queryForm.message || !queryForm.message.trim()) {
-      showErrorAlert('Validation Error', 'Please enter a message')
-      return
-    }
 
-    if (!shipment) {
-      showErrorAlert('Validation Error', 'Shipment data not loaded')
-      return
-    }
-
-    const messageText = queryForm.message.trim()
-    setSubmitting(true)
-
-    // Optimistically add message to UI (will be replaced with server response)
-    const tempMessage = {
-      id: `temp-${Date.now()}`,
-      client_id: shipment.client_id,
-      shipment_id: shipment.id,
-      sender_id: null,
-      sender_type: 'admin',
-      sender_name: 'You', // Will be replaced with actual name from server
-      subject: null,
-      message: messageText,
-      is_read: false,
-      read_at: null,
-      created_at: new Date().toISOString(),
-    }
-    
-    // Add optimistic message
-    setCommunications(prev => [...prev, tempMessage])
-    setQueryForm({ message: '' })
-
-    try {
-      const response = await complianceAPI.queryClient(shipment.client_id, {
-        subject: '', // Empty subject as per requirement
-        message: messageText,
-        shipment_id: shipment.id,
-      })
-      
-      // Replace optimistic message with server response
-      setCommunications(prev => {
-        const filtered = prev.filter(msg => msg.id !== tempMessage.id)
-        return [...filtered, response].sort((a, b) => {
-          const dateA = new Date(a.created_at || 0)
-          const dateB = new Date(b.created_at || 0)
-          return dateA - dateB
-        })
-      })
-    } catch (error) {
-      // Remove optimistic message on error
-      setCommunications(prev => prev.filter(msg => msg.id !== tempMessage.id))
-      showErrorAlert('Failed', error.response?.data?.detail || 'Failed to send message')
-      // Restore message text so user can retry
-      setQueryForm({ message: messageText })
-    } finally {
-      setSubmitting(false)
-    }
-  }
 
   const handleOpenReviewDialog = (document) => {
     setViewingDocument(document)
@@ -542,236 +455,254 @@ const ComplianceDetail = () => {
   }
 
   return (
-    <Box>
+    <Box sx={{ pb: 5 }}>
       {/* Header */}
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-        <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)}>
-          Back
-        </Button>
-        <Avatar
-          variant="rounded"
-          sx={{
-            width: 48,
-            height: 48,
-            bgcolor: 'primary.light',
-            color: 'primary.dark',
-          }}
-        >
-          <VerifiedUser />
-        </Avatar>
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="h4" gutterBottom fontWeight="bold" sx={{ mb: 0 }}>
-            Compliance Details
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            {shipment.shipment_number} - {shipment.origin} → {shipment.destination}
-          </Typography>
-        </Box>
-        <Stack direction="row" spacing={1}>
-          <Button
-            variant="outlined"
-            startIcon={<Upload />}
-            onClick={() => setOpenUploadDialog(true)}
+      <Paper elevation={0} sx={{ p: 3, mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <Stack direction="row" alignItems="center" spacing={3}>
+          <Button 
+            startIcon={<ArrowBack />} 
+            onClick={() => navigate(-1)}
+            variant="text"
+            sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
           >
-            Upload Document
+            Back
           </Button>
-          <Button
-            variant="contained"
-            startIcon={<Message />}
-            onClick={() => setOpenQueryDrawer(true)}
+          <Avatar
+            variant="rounded"
+            sx={{
+              width: 56,
+              height: 56,
+              bgcolor: 'primary.light',
+              color: 'primary.main',
+              borderRadius: 2,
+            }}
           >
-            Query Client
-          </Button>
+            <VerifiedUser sx={{ fontSize: 32 }} />
+          </Avatar>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h4" fontWeight={700} color="text.primary">
+              Compliance Details
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <LocalShipping fontSize="inherit" />
+              {shipment.shipment_number} • {shipment.origin} → {shipment.destination}
+            </Typography>
+          </Box>
+          <Stack direction="row" spacing={2}>
+            <Button
+              variant="outlined"
+              startIcon={<Upload />}
+              onClick={() => setOpenUploadDialog(true)}
+              sx={{ borderRadius: 2 }}
+            >
+              Upload Document
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<Assignment />}
+              onClick={() => {
+                if (queriesRef.current) {
+                  queriesRef.current.scrollIntoView({ behavior: 'smooth' })
+                }
+              }}
+              sx={{ borderRadius: 2, bgcolor: 'primary.main', '&:hover': { bgcolor: 'primary.dark' } }}
+            >
+              Issue Protocol
+            </Button>
+          </Stack>
         </Stack>
-      </Stack>
+      </Paper>
 
-      <Grid container spacing={3}>
-        {/* Shipment Information */}
+      <Grid container spacing={4}>
+        {/* Shipment & Client Information */}
         <Grid item xs={12} md={4}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Shipment Information
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              <Stack spacing={2}>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Shipment Number
-                  </Typography>
-                  <Typography variant="body1" fontWeight={600}>
-                    {shipment.shipment_number}
-                  </Typography>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Route
-                  </Typography>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <LocationOn fontSize="small" color="action" />
-                    <Typography variant="body1">
-                      {shipment.origin} → {shipment.destination}
-                    </Typography>
-                  </Stack>
-                </Box>
-                <Box>
-                  <Typography variant="caption" color="text.secondary">
-                    Status
-                  </Typography>
-                  <Chip
-                    label={shipment.current_clearance_activity_name || shipment.status || 'N/A'}
-                    size="small"
-                    sx={{ mt: 0.5 }}
-                  />
-                </Box>
-                {shipment.created_at && (
+          <Stack spacing={3}>
+            <Card variant="outlined" sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography variant="h6" fontWeight={700} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Assignment color="primary" /> Shipment Details
+                </Typography>
+                <Divider sx={{ my: 2 }} />
+                <Stack spacing={2.5}>
                   <Box>
-                    <Typography variant="caption" color="text.secondary">
-                      Created
+                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Shipment Number
                     </Typography>
-                    <Typography variant="body2">
-                      {format(new Date(shipment.created_at), 'MMM dd, yyyy')}
+                    <Typography variant="body1" fontWeight={700} sx={{ mt: 0.5 }}>
+                      {shipment.shipment_number}
                     </Typography>
                   </Box>
-                )}
-              </Stack>
-            </CardContent>
-          </Card>
-
-          {/* Client Information */}
-          <Card sx={{ mt: 2 }}>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>
-                Client Information
-              </Typography>
-              <Divider sx={{ my: 2 }} />
-              <Stack spacing={2}>
-                <Box>
-                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                    <Person fontSize="small" color="action" />
-                    <Typography variant="caption" color="text.secondary">
-                      Name
-                    </Typography>
-                  </Stack>
-                  <Typography variant="body1" fontWeight={500}>
-                    {shipment.client_name || shipment.consignee_name || 'N/A'}
-                  </Typography>
-                </Box>
-                {shipment.client_company && (
                   <Box>
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                      <Business fontSize="small" color="action" />
-                      <Typography variant="caption" color="text.secondary">
+                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Route
+                    </Typography>
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.5 }}>
+                      <LocationOn color="action" />
+                      <Typography variant="body1" fontWeight={500}>
+                        {shipment.origin} → {shipment.destination}
+                      </Typography>
+                    </Stack>
+                  </Box>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Status
+                    </Typography>
+                    <Box sx={{ mt: 0.5 }}>
+                      <Chip
+                        label={shipment.current_clearance_activity_name || shipment.status || 'N/A'}
+                        color="primary"
+                        variant="outlined"
+                        size="small"
+                        sx={{ fontWeight: 600 }}
+                      />
+                    </Box>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+
+            <Card variant="outlined" sx={{ borderRadius: 3 }}>
+              <CardContent>
+                <Typography variant="h6" fontWeight={700} gutterBottom sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Business color="primary" /> Client Profile
+                </Typography>
+                <Divider sx={{ my: 2 }} />
+                <Stack spacing={2.5}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Client Name
+                    </Typography>
+                    <Typography variant="body1" fontWeight={600} sx={{ mt: 0.5 }}>
+                      {shipment.client_name || shipment.consignee_name || 'N/A'}
+                    </Typography>
+                  </Box>
+                  {shipment.client_company && (
+                    <Box>
+                      <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
                         Company
                       </Typography>
-                    </Stack>
-                    <Typography variant="body1">
-                      {shipment.client_company}
-                    </Typography>
-                  </Box>
-                )}
-                {shipment.consignee_email && (
+                      <Typography variant="body1" sx={{ mt: 0.5 }}>
+                        {shipment.client_company}
+                      </Typography>
+                    </Box>
+                  )}
                   <Box>
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                      <Email fontSize="small" color="action" />
-                      <Typography variant="caption" color="text.secondary">
-                        Email
+                    <Typography variant="caption" color="text.secondary" fontWeight={600} sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                      Contact Information
+                    </Typography>
+                    <Stack spacing={1} sx={{ mt: 1 }}>
+                      <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Email fontSize="small" color="action" /> {shipment.consignee_email || 'No email provided'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                        <Phone fontSize="small" color="action" /> {shipment.consignee_phone || 'No phone provided'}
                       </Typography>
                     </Stack>
-                    <Typography variant="body2">
-                      {shipment.consignee_email}
-                    </Typography>
                   </Box>
-                )}
-                {shipment.consignee_phone && (
-                  <Box>
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                      <Phone fontSize="small" color="action" />
-                      <Typography variant="caption" color="text.secondary">
-                        Phone
-                      </Typography>
-                    </Stack>
-                    <Typography variant="body2">
-                      {shipment.consignee_phone}
-                    </Typography>
-                  </Box>
-                )}
-              </Stack>
-            </CardContent>
-          </Card>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Stack>
         </Grid>
 
         {/* Documents Section */}
         <Grid item xs={12} md={8}>
-          <Card>
+          <Card variant="outlined" sx={{ borderRadius: 3, minHeight: '100%' }}>
             <CardContent>
               <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-                <Typography variant="h6">
-                  Documents
+                <Typography variant="h6" fontWeight={700}>
+                  Compliance Documents
                 </Typography>
-                <Stack direction="row" spacing={1}>
+                <Stack direction="row" spacing={1.5}>
                   <Chip
-                    label={`${documents.length} Document${documents.length !== 1 ? 's' : ''} Uploaded`}
-                    color="success"
+                    label={`${documents.length} Uploaded`}
+                    bgcolor="primary.light"
+                    color="primary"
                     size="small"
+                    sx={{ fontWeight: 600 }}
                   />
                   {complianceSummary && complianceSummary.missing_count > 0 && (
                     <Chip
-                      label={`${complianceSummary.missing_count} Missing`}
+                      label={`${complianceSummary.missing_count} Action Required`}
+                      variant="outlined"
                       color="error"
                       size="small"
+                      sx={{ fontWeight: 600, borderColor: 'error.main' }}
                     />
                   )}
                 </Stack>
               </Stack>
-              <Divider sx={{ mb: 2 }} />
-              <TableContainer>
-                <Table size="small">
+              <Divider sx={{ mb: 3 }} />
+              
+              <TableContainer component={Box}>
+                <Table>
                   <TableHead>
-                    <TableRow>
-                      <TableCell>Document Type</TableCell>
-                      <TableCell>Uploaded</TableCell>
-                      <TableCell>Review Status</TableCell>
-                      <TableCell align="right">Actions</TableCell>
+                    <TableRow sx={{ bgcolor: '#F8F9FA' }}>
+                      <TableCell sx={{ fontWeight: 700, py: 2 }}>Document</TableCell>
+                      <TableCell sx={{ fontWeight: 700, py: 2 }}>Uploaded On</TableCell>
+                      <TableCell sx={{ fontWeight: 700, py: 2 }}>Status</TableCell>
+                      <TableCell align="right" sx={{ fontWeight: 700, py: 2 }}>Actions</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
                     {documents.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={4} align="center">
-                          <Typography variant="body2" color="text.secondary" sx={{ py: 3 }}>
-                            No documents uploaded yet
-                          </Typography>
+                        <TableCell colSpan={4} align="center" sx={{ py: 8 }}>
+                          <Stack alignItems="center" spacing={2}>
+                            <Description sx={{ fontSize: 48, color: 'text.disabled' }} />
+                            <Typography variant="body1" color="text.secondary">
+                              No compliance documents have been submitted yet.
+                            </Typography>
+                            <Button variant="outlined" onClick={() => setOpenUploadDialog(true)}>
+                              Submit First Document
+                            </Button>
+                          </Stack>
                         </TableCell>
                       </TableRow>
                     ) : (
                       documents.map((doc) => (
-                        <TableRow key={doc.id} hover>
-                          <TableCell>
-                            <Chip
-                              label={doc.document_type?.replace(/_/g, ' ').toUpperCase()}
-                              size="small"
-                              variant="outlined"
-                            />
+                        <TableRow key={doc.id} hover sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                          <TableCell sx={{ py: 2 }}>
+                            <Stack direction="row" spacing={2} alignItems="center">
+                              <Box sx={{ p: 1, borderRadius: 1.5, bgcolor: '#F8F9FA', display: 'flex' }}>
+                                <InsertDriveFile color="primary" />
+                              </Box>
+                              <Box>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {doc.document_type?.replace(/_/g, ' ').toUpperCase()}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {doc.file_name || 'View details'}
+                                </Typography>
+                              </Box>
+                            </Stack>
                           </TableCell>
-                          <TableCell>
-                            {doc.uploaded_at
-                              ? format(new Date(doc.uploaded_at), 'MMM dd, yyyy HH:mm')
-                              : '—'}
+                          <TableCell sx={{ py: 2 }}>
+                            <Typography variant="body2">
+                              {doc.uploaded_at ? format(new Date(doc.uploaded_at), 'MMM dd, yyyy') : '—'}
+                            </Typography>
                           </TableCell>
-                          <TableCell>
+                          <TableCell sx={{ py: 2 }}>
                             <Chip
                               label={doc.review_status?.toUpperCase() || 'PENDING'}
-                              color={getStatusColor(doc.review_status)}
                               size="small"
+                              sx={{ 
+                                fontWeight: 700, 
+                                fontSize: '0.65rem',
+                                bgcolor: doc.review_status === 'approved' ? '#E3F2FD' : doc.review_status === 'rejected' ? '#1A1A1A' : '#F8F9FA',
+                                color: doc.review_status === 'approved' ? '#0178A3' : doc.review_status === 'rejected' ? 'white' : 'text.secondary',
+                                border: '1px solid',
+                                borderColor: 'divider'
+                              }}
                             />
                           </TableCell>
-                          <TableCell align="right">
-                            <Tooltip title="Actions">
-                              <IconButton
-                                size="small"
-                                onClick={(e) => handleOpenDocumentMenu(e, doc)}
+                          <TableCell align="right" sx={{ py: 2 }}>
+                            <Tooltip title="View & Review">
+                              <IconButton 
+                                size="small" 
                                 color="primary"
+                                onClick={(e) => handleOpenDocumentMenu(e, doc)}
+                                sx={{ border: '1px solid', borderColor: 'divider' }}
                               >
                                 <MoreVert />
                               </IconButton>
@@ -1298,349 +1229,18 @@ const ComplianceDetail = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Query Client Drawer */}
-      <Drawer
-        anchor="right"
-        open={openQueryDrawer}
-        onClose={() => setOpenQueryDrawer(false)}
-        PaperProps={{
-          sx: { 
-            width: { xs: '100%', sm: 500 },
-            boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-          },
-        }}
-      >
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-          {/* Header */}
-          <Box
-            sx={{
-              p: 3,
-              bgcolor: 'primary.main',
-              color: 'white',
-              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            }}
-          >
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
-              <Stack direction="row" spacing={2} alignItems="center">
-                <Avatar
-                  sx={{
-                    bgcolor: 'rgba(255,255,255,0.2)',
-                    width: 48,
-                    height: 48,
-                  }}
-                >
-                  <ChatBubble sx={{ fontSize: 28 }} />
-                </Avatar>
-                <Box>
-                  <Typography variant="h6" fontWeight={600}>
-                    Client Communication
-                  </Typography>
-                  {shipment?.client_name && (
-                    <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 0.5 }}>
-                      <PersonOutline sx={{ fontSize: 14 }} />
-                      <Typography variant="body2" sx={{ opacity: 0.9 }}>
-                        {shipment.client_name}
-                      </Typography>
-                    </Stack>
-                  )}
-                </Box>
-              </Stack>
-              <IconButton 
-                onClick={() => setOpenQueryDrawer(false)}
-                sx={{ 
-                  color: 'white',
-                  '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
-                }}
-              >
-                <Close />
-              </IconButton>
-            </Stack>
-            {shipment?.shipment_number && (
-              <Chip
-                icon={<LocalShipping sx={{ color: 'white !important' }} />}
-                label={`Shipment: ${shipment.shipment_number}`}
-                size="small"
-                sx={{
-                  bgcolor: 'rgba(255,255,255,0.2)',
-                  color: 'white',
-                  border: '1px solid rgba(255,255,255,0.3)',
-                }}
-              />
-            )}
-          </Box>
-          
-          {/* Messages List - Chat Style */}
-          <Box 
-            sx={{ 
-              flex: 1, 
-              overflow: 'auto', 
-              mb: 0,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 1,
-              p: 2,
-              bgcolor: 'grey.50',
-              backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(102, 126, 234, 0.05) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(118, 75, 162, 0.05) 0%, transparent 50%)',
-            }}
-          >
-            {communications.length === 0 ? (
-              <Box 
-                sx={{ 
-                  display: 'flex', 
-                  flexDirection: 'column',
-                  justifyContent: 'center', 
-                  alignItems: 'center', 
-                  height: '100%',
-                  textAlign: 'center',
-                  px: 3,
-                }}
-              >
-                <Avatar
-                  sx={{
-                    width: 80,
-                    height: 80,
-                    bgcolor: 'primary.light',
-                    mb: 2,
-                  }}
-                >
-                  <ChatBubbleOutline sx={{ fontSize: 40, color: 'primary.main' }} />
-                </Avatar>
-                <Typography variant="h6" color="text.secondary" gutterBottom>
-                  No messages yet
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Start the conversation by sending a message below
-                </Typography>
-                <Chip
-                  icon={<AutoAwesome sx={{ fontSize: 16 }} />}
-                  label="Type your message and press Enter"
-                  size="small"
-                  sx={{ bgcolor: 'primary.light', color: 'primary.dark' }}
-                />
-              </Box>
-            ) : (
-              communications.map((comm, index) => {
-                const isAdmin = comm.sender_type === 'admin'
-                const prevComm = index > 0 ? communications[index - 1] : null
-                const showDateSeparator = !prevComm || 
-                  format(new Date(comm.created_at), 'yyyy-MM-dd') !== format(new Date(prevComm.created_at), 'yyyy-MM-dd')
-                
-                return (
-                  <React.Fragment key={comm.id || index}>
-                    {showDateSeparator && (
-                      <Box sx={{ display: 'flex', justifyContent: 'center', my: 2 }}>
-                        <Chip
-                          icon={<Schedule sx={{ fontSize: 14 }} />}
-                          label={format(new Date(comm.created_at), 'MMM dd, yyyy')}
-                          size="small"
-                          sx={{ 
-                            bgcolor: 'white',
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            boxShadow: 1,
-                          }}
-                        />
-                      </Box>
-                    )}
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        justifyContent: isAdmin ? 'flex-end' : 'flex-start',
-                        mb: 0.5,
-                      }}
-                    >
-                        <Box
-                          sx={{
-                            maxWidth: '75%',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: isAdmin ? 'flex-end' : 'flex-start',
-                          }}
-                        >
-                          <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5, px: 1 }}>
-                            {comm.sender_name && (
-                              <>
-                                <Avatar
-                                  sx={{
-                                    width: 20,
-                                    height: 20,
-                                    bgcolor: isAdmin ? 'primary.main' : 'grey.400',
-                                    fontSize: '0.6rem',
-                                  }}
-                                >
-                                  {isAdmin ? <PersonOutline sx={{ fontSize: 12 }} /> : <Person sx={{ fontSize: 12 }} />}
-                                </Avatar>
-                                <Typography 
-                                  variant="caption" 
-                                  color="text.secondary" 
-                                  sx={{ fontSize: '0.7rem', fontWeight: 500 }}
-                                >
-                                  {comm.sender_name}
-                                </Typography>
-                              </>
-                            )}
-                          </Stack>
-                          <Box
-                            sx={{
-                              p: 1.5,
-                              borderRadius: 3,
-                              background: isAdmin 
-                                ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
-                                : 'white',
-                              color: isAdmin ? 'white' : 'black',
-                              boxShadow: isAdmin 
-                                ? '0 2px 8px rgba(102, 126, 234, 0.3)' 
-                                : '0 2px 8px rgba(0,0,0,0.08)',
-                              position: 'relative',
-                              maxWidth: '100%',
-                              '&::after': {
-                                content: '""',
-                                position: 'absolute',
-                                [isAdmin ? 'right' : 'left']: -8,
-                                top: 12,
-                                width: 0,
-                                height: 0,
-                                borderTop: '8px solid transparent',
-                                borderBottom: '8px solid transparent',
-                                [isAdmin ? 'borderLeft' : 'borderRight']: `8px solid ${isAdmin ? '#667eea' : 'white'}`,
-                              },
-                            }}
-                          >
-                            <Typography 
-                              variant="body1" 
-                              sx={{ 
-                                wordBreak: 'break-word',
-                                lineHeight: 1.5,
-                                color: isAdmin ? 'white' : 'black',
-                              }}
-                            >
-                              {comm.message}
-                            </Typography>
-                          </Box>
-                          <Stack 
-                            direction="row" 
-                            spacing={0.5} 
-                            alignItems="center"
-                            sx={{ mt: 0.5, px: 1 }}
-                          >
-                            <Schedule sx={{ fontSize: 12, color: 'text.secondary' }} />
-                            <Typography 
-                              variant="caption" 
-                              color="text.secondary"
-                              sx={{ fontSize: '0.7rem' }}
-                            >
-                              {comm.created_at ? format(new Date(comm.created_at), 'HH:mm') : ''}
-                              {comm.created_at && ` • ${format(new Date(comm.created_at), 'MMM dd')}`}
-                            </Typography>
-                          </Stack>
-                        </Box>
-                    </Box>
-                  </React.Fragment>
-                )
-              })
-            )}
-            <div ref={messagesEndRef} />
-          </Box>
-
-          {/* Send Message Form */}
-          <Box
-            sx={{
-              p: 2,
-              bgcolor: 'white',
-              borderTop: '1px solid',
-              borderColor: 'divider',
-              boxShadow: '0 -2px 8px rgba(0,0,0,0.05)',
-            }}
-          >
-            <Stack direction="row" spacing={1.5} alignItems="flex-end">
-              <Box sx={{ flex: 1, position: 'relative' }}>
-                <TextField
-                  placeholder="Type your message here..."
-                  value={queryForm.message}
-                  onChange={(e) => setQueryForm({ message: e.target.value })}
-                  multiline
-                  maxRows={4}
-                  disabled={submitting}
-                  fullWidth
-                  size="small"
-                  onKeyPress={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                      e.preventDefault()
-                      if (queryForm.message.trim()) {
-                        handleSendQuery()
-                      }
-                    }
-                  }}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Message sx={{ fontSize: 18, color: 'text.secondary' }} />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      borderRadius: 4,
-                      bgcolor: 'grey.50',
-                      '&:hover': {
-                        bgcolor: 'grey.100',
-                      },
-                      '&.Mui-focused': {
-                        bgcolor: 'white',
-                        boxShadow: '0 0 0 2px rgba(102, 126, 234, 0.1)',
-                      },
-                    },
-                  }}
-                />
-                {queryForm.message.trim() && (
-                  <Chip
-                    icon={<TrendingUp sx={{ fontSize: 12 }} />}
-                    label="Press Enter to send"
-                    size="small"
-                    sx={{
-                      position: 'absolute',
-                      bottom: -20,
-                      left: 8,
-                      height: 18,
-                      fontSize: '0.65rem',
-                      bgcolor: 'primary.light',
-                      color: 'primary.dark',
-                    }}
-                  />
-                )}
-              </Box>
-              <IconButton
-                onClick={handleSendQuery}
-                disabled={submitting || !queryForm.message.trim()}
-                sx={{
-                  bgcolor: 'primary.main',
-                  color: 'white',
-                  width: 40,
-                  height: 40,
-                  boxShadow: '0 2px 8px rgba(102, 126, 234, 0.3)',
-                  '&:hover': {
-                    bgcolor: 'primary.dark',
-                    boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
-                    transform: 'translateY(-1px)',
-                  },
-                  '&.Mui-disabled': {
-                    bgcolor: 'grey.300',
-                    color: 'grey.500',
-                    boxShadow: 'none',
-                  },
-                  transition: 'all 0.2s ease-in-out',
-                }}
-              >
-                {submitting ? (
-                  <CircularProgress size={20} sx={{ color: 'white' }} />
-                ) : (
-                  <Send sx={{ fontSize: 20 }} />
-                )}
-              </IconButton>
-            </Stack>
-          </Box>
-        </Box>
-      </Drawer>
+      <Box ref={queriesRef} sx={{ mt: 4 }}>
+        <Paper elevation={0} sx={{ p: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider', bgcolor: '#FFFFFF' }}>
+          <Typography variant="h6" fontWeight={700} sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Assignment color="primary" /> Official Compliance Protocols
+          </Typography>
+          <ShipmentQueries 
+            shipmentId={shipmentId} 
+            isAdmin={isAdmin} 
+            user={user} 
+          />
+        </Paper>
+      </Box>
 
       {/* Review Document Dialog */}
       <FormDialog

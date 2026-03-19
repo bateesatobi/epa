@@ -15,6 +15,7 @@ import {
   Tooltip,
   Skeleton,
   CircularProgress,
+  Typography,
 } from '@mui/material'
 import {
   Search,
@@ -22,6 +23,7 @@ import {
   Download,
   Refresh,
 } from '@mui/icons-material'
+import { alpha } from '@mui/material/styles'
 
 const DataTable = ({
   columns,
@@ -62,59 +64,84 @@ const DataTable = ({
   )
 
   return (
-    <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+    <Paper 
+      elevation={0} 
+      sx={{ 
+        width: '100%', 
+        overflow: 'hidden',
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 3
+      }}
+    >
       <Box
         sx={{
-          p: 2,
+          p: { xs: 2, sm: 2.5 },
           display: 'flex',
+          flexDirection: { xs: 'column', sm: 'row' },
           justifyContent: 'space-between',
-          alignItems: 'center',
-          borderBottom: 1,
+          alignItems: { xs: 'stretch', sm: 'center' },
+          gap: 2,
+          borderBottom: '1px solid',
           borderColor: 'divider',
         }}
       >
         {searchable && (
           <TextField
             size="small"
-            placeholder="Search..."
+            placeholder="Search mission ID, consignee, status..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
-                  <Search />
+                  <Search sx={{ color: 'text.disabled', fontSize: 20 }} />
                 </InputAdornment>
               ),
             }}
-            sx={{ width: 300 }}
+            sx={{ 
+              width: { xs: '100%', sm: 320 },
+              '& .MuiOutlinedInput-root': {
+                borderRadius: 2,
+                bgcolor: '#F8F9FA'
+              }
+            }}
           />
         )}
-        <Box>
+        <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-end', sm: 'flex-start' } }}>
           {filters && (
             <Tooltip title="Filters">
-              <IconButton size="small" sx={{ mr: 1 }}>
-                <FilterList />
+              <IconButton size="small" sx={{ mr: 1, border: '1px solid', borderColor: 'divider' }}>
+                <FilterList fontSize="small" />
               </IconButton>
             </Tooltip>
           )}
           {onRefresh && (
             <Tooltip title="Refresh">
-              <IconButton size="small" onClick={onRefresh} sx={{ mr: 1 }}>
-                <Refresh />
+              <IconButton 
+                size="small" 
+                onClick={onRefresh} 
+                sx={{ mr: 1, border: '1px solid', borderColor: 'divider' }}
+              >
+                <Refresh fontSize="small" />
               </IconButton>
             </Tooltip>
           )}
           {exportable && onExport && (
-            <Tooltip title="Export">
-              <IconButton size="small" onClick={onExport}>
-                <Download />
+            <Tooltip title="Export Data">
+              <IconButton 
+                size="small" 
+                onClick={onExport}
+                sx={{ border: '1px solid', borderColor: 'divider' }}
+              >
+                <Download fontSize="small" />
               </IconButton>
             </Tooltip>
           )}
         </Box>
       </Box>
 
-      <TableContainer sx={{ maxHeight: 600 }}>
+      <TableContainer>
         <Table stickyHeader>
           <TableHead>
             <TableRow>
@@ -123,8 +150,15 @@ const DataTable = ({
                   key={column.field}
                   align={column.align || 'left'}
                   sx={{
-                    fontWeight: 'bold',
-                    backgroundColor: '#f5f5f5',
+                    fontWeight: 700,
+                    fontSize: '0.75rem',
+                    textTransform: 'uppercase',
+                    letterSpacing: 1,
+                    color: 'text.secondary',
+                    bgcolor: 'white',
+                    py: 2,
+                    borderBottom: '2px solid',
+                    borderColor: 'divider',
                   }}
                 >
                   {column.headerName || column.label}
@@ -134,19 +168,21 @@ const DataTable = ({
           </TableHead>
           <TableBody>
             {loading ? (
-              Array.from({ length: rowsPerPage }).map((_, index) => (
+              Array.from({ length: 5 }).map((_, index) => (
                 <TableRow key={`skeleton-${index}`}>
                   {columns.map((column) => (
-                    <TableCell key={column.field}>
-                      <Skeleton variant="text" width="100%" height={20} />
+                    <TableCell key={column.field} sx={{ py: 2.5 }}>
+                      <Skeleton variant="text" width="80%" height={24} sx={{ borderRadius: 1 }} />
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : paginatedData.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={columns.length} align="center">
-                  No data available
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 8 }}>
+                  <Typography variant="body2" color="text.secondary" fontWeight={500}>
+                    No records found matching your criteria.
+                  </Typography>
                 </TableCell>
               </TableRow>
             ) : (
@@ -157,16 +193,24 @@ const DataTable = ({
                   onClick={() => onRowClick && onRowClick(row)}
                   sx={{
                     cursor: onRowClick ? 'pointer' : 'default',
-                    backgroundColor: row.is_overdue ? 'error.light' : 'inherit',
-                    '&:hover': onRowClick
-                      ? {
-                          backgroundColor: row.is_overdue ? 'error.main' : 'action.hover',
-                        }
-                      : {},
+                    '&:hover': {
+                      bgcolor: alpha('#01A3DA', 0.04) + ' !important'
+                    },
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
                   }}
                 >
                   {columns.map((column) => (
-                    <TableCell key={column.field} align={column.align || 'left'}>
+                    <TableCell 
+                      key={column.field} 
+                      align={column.align || 'left'}
+                      sx={{ 
+                        py: 2,
+                        fontSize: '0.875rem',
+                        fontWeight: column.field === 'shipment_number' ? 700 : 400,
+                        color: row.is_overdue && column.field === 'shipment_number' ? 'error.main' : 'text.primary'
+                      }}
+                    >
                       {column.render
                         ? column.render(row)
                         : column.accessor
@@ -188,14 +232,19 @@ const DataTable = ({
         onPageChange={handleChangePage}
         rowsPerPage={rowsPerPage}
         onRowsPerPageChange={handleChangeRowsPerPage}
-        rowsPerPageOptions={[5, 10, 25, 50]}
+        rowsPerPageOptions={[10, 25, 50]}
+        sx={{
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows': {
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            color: 'text.secondary'
+          }
+        }}
       />
     </Paper>
   )
 }
 
 export default DataTable
-
-
-
-
