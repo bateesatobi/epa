@@ -23,6 +23,7 @@ import {
   Alert,
   CircularProgress,
   Tooltip,
+  alpha,
 } from '@mui/material';
 import {
   Add,
@@ -109,7 +110,10 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
       setOpenForm(false);
       fetchQueries();
     } catch (error) {
-      toast.error('Failed to save query');
+      const detail = error.response?.data?.detail;
+      const msg = Array.isArray(detail) ? detail.map(d => d.msg || JSON.stringify(d)).join('; ')
+        : (detail || error.message || 'Failed to save query');
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -186,15 +190,16 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
           <Typography variant="body2" color="text.secondary">No structured queries found for this shipment.</Typography>
         </Paper>
       ) : (
-        <Stack spacing={3}>
-          {queries.map((query) => (
-            <Paper key={query.id} variant="outlined" sx={{ overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
-              {/* Query Header */}
-              <Box sx={{ p: 2, bgcolor: '#F8F9FA', borderBottom: '1px solid', borderColor: 'divider' }}>
-                <Grid container spacing={2} alignItems="center">
-                  <Grid item xs={12} sm={4}>
-                    <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>OFFICE / REF</Typography>
-                    <Typography variant="body2" fontWeight={700}>{query.office_code} - {query.declaration_ref || 'N/A'}</Typography>
+        <Box sx={{ maxHeight: 600, overflowY: 'auto', pr: 1, '&::-webkit-scrollbar': { width: 6 }, '&::-webkit-scrollbar-thumb': { bgcolor: alpha('#000', 0.1), borderRadius: 3 } }}>
+          <Stack spacing={3}>
+            {queries.map((query) => (
+              <Paper key={query.id} variant="outlined" sx={{ overflow: 'hidden', border: '1px solid', borderColor: 'divider' }}>
+                {/* Query Header */}
+                <Box sx={{ p: 2, bgcolor: '#F8F9FA', borderBottom: '1px solid', borderColor: 'divider' }}>
+                  <Grid container spacing={2} alignItems="center">
+                    <Grid item xs={12} sm={4}>
+                      <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>OFFICE / REF</Typography>
+                      <Typography variant="body2" fontWeight={700}>{query.office_code} - {query.declaration_ref || 'N/A'}</Typography>
                   </Grid>
                   <Grid item xs={12} sm={4}>
                     <Typography variant="caption" fontWeight={700} color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>SUBJECT</Typography>
@@ -203,9 +208,9 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
                   <Grid item xs={12} sm={4}>
                     <Stack direction="row" spacing={1} justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}>
                       <Chip 
-                        label={query.status.toUpperCase()} 
+                        label={(query.status || 'sent').toUpperCase()} 
                         size="small" 
-                        color={statusColors[query.status]}
+                        color={statusColors[query.status] || 'default'}
                         sx={{ fontWeight: 800, fontSize: '0.65rem' }} 
                       />
                       {isAdmin && (
@@ -235,7 +240,7 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {query.items.map((item) => (
+                    {(query.items || []).map((item) => (
                       <TableRow key={item.id} hover>
                         <TableCell>{item.item_no}</TableCell>
                         <TableCell><Typography variant="body2" fontWeight={600}>{item.box_reference || '—'}</Typography></TableCell>
@@ -288,7 +293,8 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
             </Paper>
           ))}
         </Stack>
-      )}
+      </Box>
+    )}
 
       {/* Query Form Dialog (Admin Only) */}
       <Dialog open={openForm} onClose={() => setOpenForm(false)} maxWidth="md" fullWidth>
@@ -343,7 +349,7 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
                       label="Box Ref" 
                       placeholder="e.g. 7"
                       value={item.box_reference} 
-                      onChange={(handleItemChange.bind(null, index, 'box_reference'))}
+                      onChange={(e) => handleItemChange(index, 'box_reference', e.target.value)}
                       fullWidth size="small"
                     />
                   </Grid>
