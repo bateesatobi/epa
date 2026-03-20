@@ -795,19 +795,6 @@ const Layout = () => {
               </Typography>
             </Box>
             <Divider />
-            <MenuItem onClick={handleMenuClose} sx={{ py: 1.5 }}>
-              <ListItemIcon>
-                <Person fontSize="small" />
-              </ListItemIcon>
-              <ListItemText primary="Profile" />
-            </MenuItem>
-            <MenuItem onClick={handleMenuClose} sx={{ py: 1.5 }}>
-              <ListItemIcon>
-                <Settings fontSize="small" />
-              </ListItemIcon>
-              <ListItemText primary="Settings" />
-            </MenuItem>
-            <Divider />
             <MenuItem onClick={handleLogout} sx={{ py: 1.5, color: 'error.main' }}>
               <ListItemIcon>
                 <Logout fontSize="small" sx={{ color: 'error.main' }} />
