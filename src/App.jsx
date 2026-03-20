@@ -24,6 +24,7 @@ import ComplianceDetail from './pages/ComplianceDetail'
 import Reports from './pages/Reports'
 import FieldStaffPerformance from './pages/FieldStaffPerformance'
 import Notifications from './pages/Notifications'
+import Feedback from './pages/Feedback'
 import ShipmentClearanceHistoryPage from './pages/ShipmentClearanceHistoryPage'
 import Depots from './pages/Depots'
 import ClearanceActivities from './pages/ClearanceActivities'
@@ -72,6 +73,7 @@ function AppRoutes() {
         <Route path="reports" element={<Reports />} />
         <Route path="field-staff-performance" element={<FieldStaffPerformance />} />
         <Route path="notifications" element={<Notifications />} />
+        <Route path="feedback" element={<Feedback />} />
         <Route path="depots" element={<Depots />} />
         <Route path="clearance-activities" element={<ClearanceActivities />} />
         {/* Unmatched sub-routes show NotFound */}

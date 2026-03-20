@@ -418,6 +418,15 @@ export const complianceAPI = {
     const response = await api.patch(`/api/compliance/t1/${formId}/status`, { status })
     return response.data
   },
+  // Global Communications (Admin Inbox)
+  getAllCommunications: async () => {
+    const response = await api.get('/api/compliance/communications')
+    return response.data
+  },
+  markCommunicationRead: async (id) => {
+    const response = await api.patch(`/api/compliance/communications/${id}/read`)
+    return response.data
+  },
 }
 
 // Reports API

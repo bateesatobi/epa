@@ -43,6 +43,8 @@ import {
   Warehouse,
   ChevronLeft,
   ChevronRight,
+  ChatBubbleOutline as ChatIcon,
+  SupportAgent as SupportIcon,
 } from '@mui/icons-material'
 import HubIcon from '@mui/icons-material/Hub'
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
@@ -80,20 +82,32 @@ const navigationSections = [
     caption: 'Governance & performance',
     icon: <SecurityOutlinedIcon fontSize="small" />, 
     items: [
-  { 
-    text: 'Compliance', 
-    icon: <ComplianceIcon />, 
-    path: '/compliance',
-  },
-  { 
-    text: 'Reports', 
-    icon: <ReportsIcon />, 
-    path: '/reports',
+      { 
+        text: 'Compliance', 
+        icon: <ComplianceIcon />, 
+        path: '/compliance',
+      },
+      { 
+        text: 'Reports', 
+        icon: <ReportsIcon />, 
+        path: '/reports',
       },
       {
         text: 'Field Staff Performance',
         icon: <BarChartIcon />,
         path: '/field-staff-performance',
+      },
+    ],
+  },
+  {
+    title: 'Service & Communication',
+    caption: 'Client support & interactions',
+    icon: <SupportIcon fontSize="small" />,
+    items: [
+      {
+        text: 'Feedback & Support',
+        icon: <ChatIcon />,
+        path: '/feedback',
       },
       {
         text: 'Notifications',
