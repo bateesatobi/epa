@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -34,11 +34,9 @@ import {
 } from '@mui/icons-material';
 import { complianceAPI } from '../services/api';
 import { format } from 'date-fns';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function Feedback() {
-  const [communications, setCommunications] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [tabValue, setTabValue] = useState(0);
   
   // Reply Modal State
@@ -51,28 +49,27 @@ export default function Feedback() {
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [conversationMessages, setConversationMessages] = useState([]);
 
-  useEffect(() => {
-    fetchCommunications();
-  }, []);
+  const queryClient = useQueryClient();
 
-  const fetchCommunications = async () => {
-    setLoading(true);
-    try {
+  const { data: communications = [], isLoading: loading, error: queryError, refetch: fetchCommunications } = useQuery({
+    queryKey: ['communicationsList'],
+    queryFn: async () => {
       const data = await complianceAPI.getAllCommunications();
-      setCommunications(data);
-    } catch (err) {
-      setError('Failed to load feedback messages. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+      return Array.isArray(data) ? data : [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const error = queryError ? 'Failed to load feedback messages. Please try again.' : null;
 
   const handleMarkRead = async (id) => {
     try {
       await complianceAPI.markCommunicationRead(id);
-      setCommunications(communications.map(c => 
-        c.id === id ? { ...c, is_read: true, read_at: new Date().toISOString() } : c
-      ));
+      queryClient.setQueryData(['communicationsList'], (old) => 
+        old ? old.map(c => 
+          c.id === id ? { ...c, is_read: true, read_at: new Date().toISOString() } : c
+        ) : old
+      );
     } catch (err) {
       console.error('Error marking read:', err);
     }

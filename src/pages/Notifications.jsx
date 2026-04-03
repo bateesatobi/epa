@@ -30,6 +30,7 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'react-toastify'
 import { notificationsAPI } from '../services/api'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { PageSkeleton } from '../components/LoadingStates'
 
 const tabOptions = [
@@ -50,39 +51,19 @@ const Notifications = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const [tabValue, setTabValue] = useState(0)
-  const [notifications, setNotifications] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [refreshKey, setRefreshKey] = useState(0)
-
+  const queryClient = useQueryClient()
   const focusNotificationId = location.state?.notificationId
 
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true)
-      const statusParam =
-        tabValue === 1 ? 'unread' : tabValue === 2 ? 'read' : undefined
+  const { data: notifications = [], isLoading: loading, refetch: fetchNotifications } = useQuery({
+    queryKey: ['notificationsList', tabValue],
+    queryFn: async () => {
+      const statusParam = tabValue === 1 ? 'unread' : tabValue === 2 ? 'read' : undefined
       const response = await notificationsAPI.list({ status: statusParam, limit: 100 })
-      setNotifications(response.items || [])
-    } catch (error) {
-      console.error(error)
-      toast.error('Failed to load notifications')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    fetchNotifications()
-  }, [tabValue, refreshKey])
-
-  // Poll for new notifications every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchNotifications()
-    }, 30000) // 30 seconds
-
-    return () => clearInterval(interval)
-  }, [tabValue, refreshKey])
+      return response.items || []
+    },
+    refetchInterval: 30000,
+    staleTime: 5000,
+  })
 
   useEffect(() => {
     if (focusNotificationId) {
@@ -109,10 +90,10 @@ const Notifications = () => {
   const handleMarkRead = async (notification) => {
     try {
       await notificationsAPI.markRead(notification.id)
-      setNotifications((prev) =>
-        prev.map((item) =>
+      queryClient.setQueryData(['notificationsList', tabValue], (old) =>
+        old ? old.map((item) =>
           item.id === notification.id ? { ...item, is_read: true, read_at: new Date().toISOString() } : item
-        )
+        ) : old
       )
       toast.success('Notification marked as read')
       triggerGlobalRefresh()
@@ -125,10 +106,10 @@ const Notifications = () => {
   const handleMarkUnread = async (notification) => {
     try {
       await notificationsAPI.markUnread(notification.id)
-      setNotifications((prev) =>
-        prev.map((item) =>
+      queryClient.setQueryData(['notificationsList', tabValue], (old) =>
+        old ? old.map((item) =>
           item.id === notification.id ? { ...item, is_read: false, read_at: null } : item
-        )
+        ) : old
       )
       toast.success('Notification marked as unread')
       triggerGlobalRefresh()
@@ -141,7 +122,9 @@ const Notifications = () => {
   const handleDelete = async (notification) => {
     try {
       await notificationsAPI.delete(notification.id)
-      setNotifications((prev) => prev.filter((item) => item.id !== notification.id))
+      queryClient.setQueryData(['notificationsList', tabValue], (old) => 
+        old ? old.filter((item) => item.id !== notification.id) : old
+      )
       toast.success('Notification deleted')
       triggerGlobalRefresh()
     } catch (error) {
@@ -165,7 +148,7 @@ const Notifications = () => {
   }
 
   const handleRefresh = () => {
-    setRefreshKey((prev) => prev + 1)
+    fetchNotifications()
   }
 
   const handleMarkAllRead = async () => {
@@ -249,7 +232,9 @@ const Notifications = () => {
       </Tabs>
 
       {loading && notifications.length === 0 ? (
-        <PageSkeleton showHeader={false} showTable={false} />
+        <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+          <CircularProgress />
+        </Box>
       ) : notifications.length === 0 ? (
         <Paper
           sx={{

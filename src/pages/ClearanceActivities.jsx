@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Box,
   Typography,
@@ -19,6 +19,7 @@ import {
   CardContent,
   Divider,
   Tooltip,
+  CircularProgress,
 } from '@mui/material'
 import {
   Add,
@@ -34,6 +35,7 @@ import {
 } from '@mui/icons-material'
 import { clearanceActivitiesAPI } from '../services/api'
 import { format } from 'date-fns'
+import { useQuery } from '@tanstack/react-query'
 import FormDialog from '../components/FormDialog'
 import FormTextField from '../components/FormTextField'
 import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
@@ -46,8 +48,7 @@ import {
 } from '../utils/alerts'
 
 const ClearanceActivities = () => {
-  const [activities, setActivities] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loadingLocal, setLoadingLocal] = useState(false)
   const [reordering, setReordering] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [openDialog, setOpenDialog] = useState(false)
@@ -64,22 +65,21 @@ const ClearanceActivities = () => {
 
   const [substateInput, setSubstateInput] = useState('')
 
-  useEffect(() => {
-    fetchActivities()
-  }, [])
-
-  const fetchActivities = async () => {
-    try {
-      setLoading(true)
+  const { data: rawActivities = [], isLoading: loading, refetch: fetchActivities } = useQuery({
+    queryKey: ['clearanceActivitiesList'],
+    queryFn: async () => {
       const data = await clearanceActivitiesAPI.list()
-      setActivities(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Error fetching clearance activities:', error)
-      showErrorAlert('Failed to fetch clearance activities')
-    } finally {
-      setLoading(false)
-    }
-  }
+      return Array.isArray(data) ? data : []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  // To support state mutations before refetch resolves, we keep a local sync 
+  // or we can simply map the query data downstream. We'll map query data downstream,
+  // except for drag reordering which overrides the UI optimistically.
+  const [optimisticActivities, setOptimisticActivities] = useState(null)
+  
+  const activities = optimisticActivities || rawActivities
 
   const handleOpenDialog = (activity = null) => {
     if (activity) {
@@ -193,7 +193,9 @@ const ClearanceActivities = () => {
       const newPosition = activity.priority - 1
       const updatedActivities = await clearanceActivitiesAPI.reorder(activity.id, newPosition)
       
-      setActivities(updatedActivities)
+      setOptimisticActivities(updatedActivities)
+      await fetchActivities()
+      setOptimisticActivities(null)
       closeAlert()
       showSuccessAlert('Activity moved up successfully')
     } catch (error) {
@@ -215,7 +217,9 @@ const ClearanceActivities = () => {
       const newPosition = activity.priority + 1
       const updatedActivities = await clearanceActivitiesAPI.reorder(activity.id, newPosition)
       
-      setActivities(updatedActivities)
+      setOptimisticActivities(updatedActivities)
+      await fetchActivities()
+      setOptimisticActivities(null)
       closeAlert()
       showSuccessAlert('Activity moved down successfully')
     } catch (error) {
@@ -258,7 +262,11 @@ const ClearanceActivities = () => {
   }
 
   if (loading && activities.length === 0) {
-    return <PageSkeleton showHeader={true} showTable={true} />
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    )
   }
 
   return (

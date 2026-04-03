@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   Box,
   Typography,
@@ -45,29 +46,19 @@ import {
 
 const Compliance = () => {
   const navigate = useNavigate()
-  const [shipments, setShipments] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { data: shipments = [], isLoading: loading, refetch: fetchShipmentsWithCompliance } = useQuery({
+    queryKey: ['complianceShipments'],
+    queryFn: () => complianceAPI.getShipmentsWithCompliance({ limit: 50 }),
+    onError: (error) => {
+      toast.error('Failed to load compliance data')
+      console.error('Compliance fetch error:', error)
+    }
+  })
+
+  // Local UI states
   const [submitting, setSubmitting] = useState(false)
   const [actionMenu, setActionMenu] = useState({ anchorEl: null, shipment: null })
   const [selectedShipments, setSelectedShipments] = useState([])
-
-  useEffect(() => {
-    fetchShipmentsWithCompliance()
-  }, [])
-
-  const fetchShipmentsWithCompliance = async () => {
-    try {
-      setLoading(true)
-      // Reduced limit for faster loading - can be increased if needed
-      const data = await complianceAPI.getShipmentsWithCompliance({ limit: 50 })
-      setShipments(data)
-    } catch (error) {
-      toast.error('Failed to load compliance data')
-      console.error('Compliance fetch error:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const handleView = (shipment) => {
     navigate(`/compliance/${shipment.id}`)
@@ -138,9 +129,7 @@ const Compliance = () => {
     }
   }
 
-  if (loading && shipments.length === 0) {
-    return <PageSkeleton showHeader={true} showTable={true} />
-  }
+
 
   return (
     <Box>
@@ -158,7 +147,7 @@ const Compliance = () => {
         </Avatar>
         <Box>
           <Typography variant="h4" gutterBottom fontWeight="bold" sx={{ mb: 0 }}>
-            Compliance Management
+            Checklist Management
           </Typography>
           <Typography variant="body2" color="text.secondary">
             Manage client documents, track compliance, and communicate with clients

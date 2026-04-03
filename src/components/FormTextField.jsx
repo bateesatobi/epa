@@ -1,5 +1,6 @@
-import React from 'react'
-import { TextField, Box, InputAdornment } from '@mui/material'
+import React, { useState } from 'react'
+import { TextField, Box, InputAdornment, IconButton } from '@mui/material'
+import { Visibility, VisibilityOff } from '@mui/icons-material'
 
 const FormTextField = ({
   label,
@@ -21,6 +22,25 @@ const FormTextField = ({
   sx = {},
   ...props
 }) => {
+  const [showPassword, setShowPassword] = useState(false)
+  const isPassword = type === 'password'
+  const displayType = isPassword ? (showPassword ? 'text' : 'password') : type
+
+  const passwordToggleAdornment = isPassword ? (
+    <InputAdornment position="end">
+      <IconButton
+        aria-label="toggle password visibility"
+        onClick={() => setShowPassword(!showPassword)}
+        onMouseDown={(e) => e.preventDefault()}
+        edge="end"
+      >
+        {showPassword ? <VisibilityOff /> : <Visibility />}
+      </IconButton>
+    </InputAdornment>
+  ) : endAdornment ? (
+    <InputAdornment position="end">{endAdornment}</InputAdornment>
+  ) : undefined
+
   return (
     <Box sx={{ mb: margin === 'normal' ? 2 : 0, ...sx }}>
       <TextField
@@ -31,7 +51,7 @@ const FormTextField = ({
         error={!!error}
         helperText={error || helperText}
         required={required}
-        type={type}
+        type={displayType}
         multiline={multiline}
         rows={rows}
         disabled={disabled}
@@ -42,9 +62,7 @@ const FormTextField = ({
           startAdornment: startAdornment ? (
             <InputAdornment position="start">{startAdornment}</InputAdornment>
           ) : undefined,
-          endAdornment: endAdornment ? (
-            <InputAdornment position="end">{endAdornment}</InputAdornment>
-          ) : undefined,
+          endAdornment: passwordToggleAdornment,
         }}
         sx={{
           '& .MuiOutlinedInput-root': {

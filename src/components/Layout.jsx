@@ -65,16 +65,18 @@ const navigationSections = [
     caption: 'Real-time operations cockpit',
     icon: <HubIcon fontSize="small" />, 
     items: [
-  { 
-    text: 'Cockpit', 
-    icon: <DashboardIcon />, 
-    path: '/',
-  },
-  {
-    text: 'Consignments', 
-    icon: <ShipmentsIcon />, 
-    path: '/shipments',
-  },
+      { 
+        text: 'Cockpit', 
+        icon: <DashboardIcon />, 
+        path: '/',
+        roles: ['admin', 'field-staff', 'reporting-officer']
+      },
+      {
+        text: 'Consignments', 
+        icon: <ShipmentsIcon />, 
+        path: '/shipments',
+        roles: ['admin', 'field-staff', 'reporting-officer']
+      },
     ],
   },
   {
@@ -83,19 +85,22 @@ const navigationSections = [
     icon: <SecurityOutlinedIcon fontSize="small" />, 
     items: [
       { 
-        text: 'Compliance', 
+        text: 'Checklist', 
         icon: <ComplianceIcon />, 
         path: '/compliance',
+        roles: ['admin', 'field-staff', 'reporting-officer']
       },
       { 
         text: 'Reports', 
         icon: <ReportsIcon />, 
         path: '/reports',
+        roles: ['admin', 'reporting-officer']
       },
       {
         text: 'Field Staff Performance',
         icon: <BarChartIcon />,
         path: '/field-staff-performance',
+        roles: ['admin']
       },
     ],
   },
@@ -108,11 +113,13 @@ const navigationSections = [
         text: 'Feedback & Support',
         icon: <ChatIcon />,
         path: '/feedback',
+        roles: ['admin', 'field-staff', 'reporting-officer']
       },
       {
         text: 'Notifications',
         icon: <Notifications />,
         path: '/notifications',
+        roles: ['admin', 'field-staff', 'reporting-officer']
       },
     ],
   },
@@ -125,28 +132,35 @@ const navigationSections = [
         text: 'Users',
         icon: <PeopleIcon />,
         path: '/users',
+        roles: ['admin']
       },
       {
-        text: 'Depots',
+        text: 'ICD/BOND',
         icon: <Warehouse />,
         path: '/depots',
+        roles: ['admin', 'reporting-officer']
       },
       {
         text: 'Clearance Activities',
         icon: <TimelineIcon />,
         path: '/clearance-activities',
+        roles: ['admin', 'field-staff', 'reporting-officer']
       },
     ],
   },
 ]
-
-const flattenedMenu = navigationSections.flatMap((section) => section.items)
 
 const isPathActive = (currentPath, targetPath) => {
   if (targetPath === '/') {
     return currentPath === '/'
   }
   return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`)
+}
+
+const checkRoleAccess = (itemRoles, userRoles) => {
+  if (!itemRoles || itemRoles.length === 0) return true
+  if (!userRoles || userRoles.length === 0) return false
+  return itemRoles.some(role => userRoles.some(uRole => uRole.name === role))
 }
 
 const Layout = () => {
@@ -173,9 +187,20 @@ const Layout = () => {
     localStorage.setItem('sidebarExpanded', JSON.stringify(newState))
   }
 
+  const filteredSections = useMemo(() => {
+    return navigationSections.map(section => ({
+      ...section,
+      items: section.items.filter(item => checkRoleAccess(item.roles, user?.roles))
+    })).filter(section => section.items.length > 0)
+  }, [user])
+
+  const flattenedMenu = useMemo(() => {
+    return filteredSections.flatMap(section => section.items)
+  }, [filteredSections])
+
   const activeItem = useMemo(
     () => flattenedMenu.find((item) => isPathActive(location.pathname, item.path)) ?? flattenedMenu[0],
-    [location.pathname]
+    [location.pathname, flattenedMenu]
   )
   const notificationsMenuOpen = Boolean(notificationsAnchorEl)
 
@@ -397,7 +422,7 @@ const Layout = () => {
           },
         }}
       >
-        {navigationSections.map((section, sectionIndex) => (
+        {filteredSections.map((section, sectionIndex) => (
           <Box key={section.title} sx={{ mb: sidebarExpanded ? 2.5 : 1.5 }}>
             {sidebarExpanded && (
               <ListSubheader

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Box,
   Typography,
@@ -36,6 +36,7 @@ import {
 import { depotsAPI } from '../services/api'
 import DataTable from '../components/DataTable'
 import { format } from 'date-fns'
+import { useQuery } from '@tanstack/react-query'
 import FormDialog from '../components/FormDialog'
 import FormTextField from '../components/FormTextField'
 import FormSelect from '../components/FormSelect'
@@ -49,8 +50,6 @@ import {
 } from '../utils/alerts'
 
 const Depots = () => {
-  const [depots, setDepots] = useState([])
-  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [openDialog, setOpenDialog] = useState(false)
   const [editingDepot, setEditingDepot] = useState(null)
@@ -63,22 +62,14 @@ const Depots = () => {
     is_active: true,
   })
 
-  useEffect(() => {
-    fetchDepots()
-  }, [])
-
-  const fetchDepots = async () => {
-    try {
-      setLoading(true)
+  const { data: depots = [], isLoading: loading, refetch: fetchDepots } = useQuery({
+    queryKey: ['depotsList'],
+    queryFn: async () => {
       const data = await depotsAPI.list()
-      setDepots(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Error fetching depots:', error)
-      showErrorAlert('Failed to fetch depots')
-    } finally {
-      setLoading(false)
-    }
-  }
+      return Array.isArray(data) ? data : []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
 
   const handleOpenDialog = (depot = null) => {
     if (depot) {
@@ -250,7 +241,11 @@ const Depots = () => {
   ]
 
   if (loading && depots.length === 0) {
-    return <PageSkeleton showHeader={true} showTable={true} />
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    )
   }
 
   return (

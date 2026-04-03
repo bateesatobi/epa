@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import {
   Box,
   Typography,
@@ -44,36 +44,32 @@ import {
 } from '@mui/icons-material'
 import { usersAPI } from '../services/api'
 import { format } from 'date-fns'
+import { useQuery } from '@tanstack/react-query'
 import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 
 const FieldStaffPerformance = () => {
-  const [loading, setLoading] = useState(true)
-  const [data, setData] = useState(null)
-  const [error, setError] = useState(null)
   const [selectedStaffId, setSelectedStaffId] = useState(null)
   const [shipmentDetails, setShipmentDetails] = useState(null)
   const [loadingDetails, setLoadingDetails] = useState(false)
   const [detailsDialogOpen, setDetailsDialogOpen] = useState(false)
 
-  useEffect(() => {
-    fetchPerformance()
-  }, [])
-
-  const fetchPerformance = async () => {
-    try {
-      setLoading(true)
+  const { data = null, isLoading: loading, error: queryError } = useQuery({
+    queryKey: ['fieldStaffPerformance'],
+    queryFn: async () => {
       const response = await usersAPI.getFieldStaffPerformance()
-      setData(response)
-      setError(null)
-    } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to load performance data')
-    } finally {
-      setLoading(false)
-    }
-  }
+      return response
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const error = queryError ? (queryError.response?.data?.detail || 'Failed to load performance data') : null
 
   if (loading && !data) {
-    return <PageSkeleton showHeader={true} showTable={true} />
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    )
   }
 
   if (error) {

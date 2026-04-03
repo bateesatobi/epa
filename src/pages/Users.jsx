@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Box,
   Typography,
@@ -78,6 +78,7 @@ import {
 } from '@mui/icons-material'
 import { usersAPI, authAPI, clientsAPI } from '../services/api'
 import { toast } from 'react-toastify'
+import { useQuery } from '@tanstack/react-query'
 import DataTable from '../components/DataTable'
 import { format } from 'date-fns'
 import FormDialog from '../components/FormDialog'
@@ -94,18 +95,12 @@ import {
 } from '../utils/alerts'
 
 const Users = () => {
-  const [users, setUsers] = useState([])
-  const [clients, setClients] = useState([])
-  const [roles, setRoles] = useState([])
-  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [openDialog, setOpenDialog] = useState(false)
   const [openPasswordDialog, setOpenPasswordDialog] = useState(false)
   const [openRoleDialog, setOpenRoleDialog] = useState(false)
-  // Old assignments dialog removed - now using clearance activity assignments per shipment
   const [openBulkDialog, setOpenBulkDialog] = useState(false)
   const [openStatsDialog, setOpenStatsDialog] = useState(false)
-  const [openActivityLogDialog, setOpenActivityLogDialog] = useState(false)
   const [openViewDialog, setOpenViewDialog] = useState(false)
   const [openClientViewDialog, setOpenClientViewDialog] = useState(false)
   const [openClientApproveDialog, setOpenClientApproveDialog] = useState(false)
@@ -115,7 +110,6 @@ const Users = () => {
   const [editingRole, setEditingRole] = useState(null)
   const [selectedUsers, setSelectedUsers] = useState([])
   const [viewingUserId, setViewingUserId] = useState(null)
-  const [activityLogs, setActivityLogs] = useState([])
   const [statistics, setStatistics] = useState(null)
   const [tabValue, setTabValue] = useState(0)
   const [actionMenu, setActionMenu] = useState({ anchorEl: null, user: null })
@@ -146,61 +140,34 @@ const Users = () => {
     permissions: '',
   })
 
-  // Old assignmentsData removed - now using clearance activity assignments per shipment
-
-  useEffect(() => {
-    fetchUsers()
-    fetchRoles()
-    if (tabValue === 2) {
-      fetchClients()
-    }
-  }, [tabValue])
-
-  // Refetch roles when dialog opens to ensure latest data
-  useEffect(() => {
-    if (openDialog) {
-      fetchRoles()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [openDialog])
-
-  const fetchUsers = async () => {
-    try {
-      setLoading(true)
+  const { data: users = [], isLoading: loading, refetch: fetchUsers } = useQuery({
+    queryKey: ['usersList'],
+    queryFn: async () => {
       const data = await usersAPI.list()
-      setUsers(data.items || [])
-    } catch (error) {
-      toast.error('Failed to load users')
-    } finally {
-      setLoading(false)
-    }
-  }
+      return data.items || []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
 
-  const fetchRoles = async () => {
-    try {
+  const { data: roles = [], refetch: fetchRoles } = useQuery({
+    queryKey: ['rolesList'],
+    queryFn: async () => {
       const data = await usersAPI.listRoles()
-      // Handle both array and object response formats
-      const rolesList = Array.isArray(data) ? data : (data.items || [])
-      setRoles(rolesList)
-      console.log('Roles loaded:', rolesList)
-    } catch (error) {
-      console.error('Failed to load roles:', error)
-      toast.error('Failed to load roles')
-    }
-  }
+      return Array.isArray(data) ? data : (data.items || [])
+    },
+    staleTime: 5 * 60 * 1000,
+  })
 
-  const fetchClients = async () => {
-    try {
-      setLoading(true)
+  const { data: clients = [], refetch: fetchClients } = useQuery({
+    queryKey: ['clientsList'],
+    queryFn: async () => {
       const data = await clientsAPI.list()
-      setClients(data.items || [])
-    } catch (error) {
-      console.error('Failed to load clients:', error)
-      toast.error('Failed to load clients')
-    } finally {
-      setLoading(false)
-    }
-  }
+      return data.items || []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+
 
   const handleViewClient = async (client) => {
     try {
@@ -659,17 +626,6 @@ const Users = () => {
     }
   }
 
-  const handleViewActivityLog = async (userId) => {
-    setViewingUserId(userId)
-    try {
-      const logs = await usersAPI.getActivityLog(userId, { limit: 50 })
-      setActivityLogs(logs || [])
-      setOpenActivityLogDialog(true)
-    } catch (error) {
-      toast.error('Failed to load activity log')
-    }
-  }
-
   const handleViewUser = (user) => {
     setViewingUser(user)
     setOpenViewDialog(true)
@@ -691,7 +647,11 @@ const Users = () => {
   }
 
   if (loading && users.length === 0) {
-    return <PageSkeleton showHeader={true} showTable={true} />
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    )
   }
 
   return (
@@ -1538,44 +1498,6 @@ const Users = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Activity Log Dialog */}
-      <Dialog open={openActivityLogDialog} onClose={() => setOpenActivityLogDialog(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Activity Log</DialogTitle>
-        <DialogContent>
-          <TableContainer>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Action</TableCell>
-                  <TableCell>Resource</TableCell>
-                  <TableCell>Details</TableCell>
-                  <TableCell>Date</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {activityLogs.map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell>{log.action}</TableCell>
-                    <TableCell>
-                      {log.resource_type} #{log.resource_id}
-                    </TableCell>
-                    <TableCell>{log.details}</TableCell>
-                    <TableCell>
-                      {log.created_at
-                        ? format(new Date(log.created_at), 'MMM dd, yyyy HH:mm')
-                        : 'N/A'}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setOpenActivityLogDialog(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-
       {/* Actions Menu */}
       <Menu
         anchorEl={actionMenu.anchorEl}
@@ -1616,17 +1538,6 @@ const Users = () => {
           <ListItemText primary="Reset Password" />
         </MenuItem>
         {/* Old capabilities menu item removed - assignments are now managed per shipment via clearance activities */}
-        <MenuItem
-          onClick={() => {
-            handleViewActivityLog(actionMenu.user.id)
-            handleCloseActionsMenu()
-          }}
-        >
-          <ListItemIcon>
-            <History fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Activity Log" />
-        </MenuItem>
         <Divider />
         {actionMenu.user?.is_active ? (
           <MenuItem

@@ -57,7 +57,11 @@ const ShipmentClearanceHistoryPage = () => {
   }
 
   if (loading && !shipment) {
-    return <PageSkeleton showHeader={true} showTable={false} />
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    )
   }
 
   return (

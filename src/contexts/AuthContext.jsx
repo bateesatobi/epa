@@ -59,11 +59,18 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('token')
   }
 
+  const isAdmin = user?.roles?.some((role) => role.name === 'admin') || false
+  const isReportingOfficer = user?.roles?.some((role) => role.name === 'reporting-officer') || false
+  const isStaff = isAdmin || isReportingOfficer
+
   const value = {
     user,
     token,
     isAuthenticated: !!token,
     loading,
+    isAdmin,
+    isReportingOfficer,
+    isStaff,
     login,
     logout,
   }

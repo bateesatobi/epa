@@ -346,6 +346,16 @@ export const complianceAPI = {
     const response = await api.get(`/api/compliance/documents/${documentId}/shipments`)
     return response.data
   },
+  // Update document
+  updateDocument: async (documentId, documentData) => {
+    const response = await api.put(`/api/compliance/documents/${documentId}`, documentData)
+    return response.data
+  },
+  // Delete document
+  deleteDocument: async (documentId) => {
+    const response = await api.delete(`/api/compliance/documents/${documentId}`)
+    return response.data
+  },
   // Query client (send communication)
   queryClient: async (clientId, communicationData) => {
     const response = await api.post(`/api/compliance/clients/${clientId}/query`, communicationData)

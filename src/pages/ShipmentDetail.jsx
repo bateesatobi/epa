@@ -97,8 +97,7 @@ const normaliseStatusLabel = (status) => {
 const ShipmentDetail = () => {
   const { shipmentId } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const isAdmin = user?.roles?.some(role => role.name === 'admin') || false
+  const { user, isAdmin, isStaff } = useAuth()
   const [shipment, setShipment] = useState(null)
   const [timeline, setTimeline] = useState([])
   const [loading, setLoading] = useState(true)
@@ -189,7 +188,7 @@ const ShipmentDetail = () => {
 
   const handleOpenStatusDialog = (activity) => {
     // For field staff, only allow updating their own assignments
-    if (!isAdmin) {
+    if (!isStaff) {
       const assignment = myAssignments.find(a => a.clearance_activity_id === activity.id)
       if (!assignment) return
     }
@@ -427,7 +426,11 @@ const ShipmentDetail = () => {
   }, [shipment, activityAssignments, clearanceHistory, clearanceActivities])
 
   if (loading && !shipment) {
-    return <PageSkeleton showHeader={true} showTable={false} />
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    )
   }
 
   if (error || !shipment) {
@@ -750,7 +753,7 @@ const ShipmentDetail = () => {
                             </Typography>
                           </Stack>
                         </Box>
-                        {isAdmin && (
+                        {isStaff && (
                           <IconButton 
                             size="small" 
                             onClick={() => {
@@ -840,7 +843,7 @@ const ShipmentDetail = () => {
                 {communicationTab === 0 && (
                   <ShipmentQueries 
                     shipmentId={shipmentId} 
-                    isAdmin={isAdmin} 
+                    isAdmin={isStaff} 
                     user={user} 
                   />
                 )}
@@ -848,7 +851,7 @@ const ShipmentDetail = () => {
                   <ClientMessages
                     shipmentId={shipmentId}
                     clientId={shipment.client_id}
-                    isAdmin={isAdmin}
+                    isAdmin={isStaff}
                   />
                 )}
               </Box>

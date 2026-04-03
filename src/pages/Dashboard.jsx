@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
   Grid,
@@ -165,37 +166,26 @@ const SecondaryStatCard = ({ label, value, icon }) => (
 
 const Dashboard = () => {
   const navigate = useNavigate()
-  const [loading, setLoading] = useState(true)
-  const [kpis, setKpis] = useState(null)
-  const [activityAnalytics, setActivityAnalytics] = useState(null)
-  const [fieldStaffAnalytics, setFieldStaffAnalytics] = useState(null)
-  const [timelineAnalytics, setTimelineAnalytics] = useState(null)
-  const [shipments, setShipments] = useState([])
-  const [refreshKey, setRefreshKey] = useState(0)
   const [selectedClient, setSelectedClient] = useState(null)
-  const [clients, setClients] = useState([])
-  const [clientsLoading, setClientsLoading] = useState(false)
   const [isFiltering, setIsFiltering] = useState(false)
 
-  const fetchClients = async () => {
-    try {
-      setClientsLoading(true)
+  // 1. Fetch Clients via React Query
+  const { data: clients = [], isLoading: clientsLoading } = useQuery({
+    queryKey: ['dashboardClients'],
+    queryFn: async () => {
       const data = await clientsAPI.list({ status: 'approved', limit: 1000 })
-      setClients(data.items || [])
-    } catch (error) {
-      console.error('Failed to load clients:', error)
-    } finally {
-      setClientsLoading(false)
-    }
-  }
+      return data.items || []
+    },
+    staleTime: 5 * 60 * 1000 // Cache for 5 mins
+  })
 
+  // 2. Fetch Dashboard Data
   const fetchDashboardData = async () => {
+    setIsFiltering(!!selectedClient)
+    const clientId = selectedClient?.id || null
+    const params = clientId ? { client_id: clientId } : {}
+    
     try {
-      setLoading(true)
-      setIsFiltering(!!selectedClient)
-      const clientId = selectedClient?.id || null
-      const params = clientId ? { client_id: clientId } : {}
-      
       const [
         kpisData,
         activityData,
@@ -209,32 +199,35 @@ const Dashboard = () => {
         reportsAPI.getTimelineAnalytics(30, params),
         shipmentsAPI.list({ limit: 5, ...(clientId && { client_id: clientId }) }),
       ])
-      setKpis(kpisData)
-      setActivityAnalytics(activityData)
-      setFieldStaffAnalytics(fieldStaffData)
-      setTimelineAnalytics(timelineData)
-      setShipments(shipmentsData.items || [])
-    } catch (error) {
-      toast.error('Failed to load dashboard data')
-      console.error(error)
+      return {
+        kpis: kpisData,
+        activityAnalytics: activityData,
+        fieldStaffAnalytics: fieldStaffData,
+        timelineAnalytics: timelineData,
+        shipments: shipmentsData.items || []
+      }
     } finally {
-      setLoading(false)
       setIsFiltering(false)
     }
   }
 
-  useEffect(() => {
-    fetchClients()
-  }, [])
+  const { data: dashboardData, isLoading: dashboardLoading, refetch } = useQuery({
+    queryKey: ['dashboardKey', selectedClient?.id],
+    queryFn: fetchDashboardData,
+    refetchInterval: 60000, // Background poll every minute
+    onError: (error) => {
+      toast.error('Failed to load dashboard data')
+      console.error(error)
+    }
+  })
 
-  useEffect(() => {
-    fetchDashboardData()
-    const interval = setInterval(fetchDashboardData, 60000)
-    return () => clearInterval(interval)
-  }, [refreshKey, selectedClient])
+  const { kpis, activityAnalytics, fieldStaffAnalytics, timelineAnalytics, shipments = [] } = dashboardData || {}
+  
+  // Use either the hard loading state or the component specific loading
+  const loading = dashboardLoading
 
   const handleRefresh = () => {
-    setRefreshKey(prev => prev + 1)
+    refetch()
     toast.info('Refreshing metrics...')
   }
 

@@ -86,6 +86,7 @@ import FormDialog from '../components/FormDialog'
 import FormTextField from '../components/FormTextField'
 import FormSelect from '../components/FormSelect'
 import ShipmentQueries from '../components/ShipmentQueries'
+import ClientMessages from '../components/ClientMessages'
 import { useAuth } from '../contexts/AuthContext'
 import {
   showSuccessAlert,
@@ -97,8 +98,7 @@ import {
 const ComplianceDetail = () => {
   const { shipmentId } = useParams()
   const navigate = useNavigate()
-  const { user } = useAuth()
-  const isAdmin = user?.role === 'admin'
+  const { user, isAdmin, isStaff } = useAuth()
   const [shipment, setShipment] = useState(null)
   const [documents, setDocuments] = useState([])
   const [complianceSummary, setComplianceSummary] = useState(null)
@@ -109,6 +109,11 @@ const ComplianceDetail = () => {
   const [openUploadDialog, setOpenUploadDialog] = useState(false)
   const [openReviewDialog, setOpenReviewDialog] = useState(false)
   const [documentMenu, setDocumentMenu] = useState({ anchorEl: null, document: null })
+  
+  // Drawer states
+  const [openQueriesDrawer, setOpenQueriesDrawer] = useState(false)
+  const [openChatDrawer, setOpenChatDrawer] = useState(false)
+  
   const queriesRef = React.useRef(null)
   
   // Document upload form - batch upload support
@@ -439,8 +444,39 @@ const ComplianceDetail = () => {
     }
   }
 
+  const handleMenuDelete = async () => {
+    const document = documentMenu.document
+    if (!document) return
+
+    const confirm = await showConfirmDialog({
+      title: 'Delete Document',
+      message: `Are you sure you want to delete the document "${document.title}"? This action cannot be undone.`,
+      confirmText: 'Delete',
+      confirmColor: 'error',
+    })
+
+    if (confirm) {
+      try {
+        showLoadingAlert('Deleting document...')
+        await complianceAPI.deleteDocument(document.id)
+        showSuccessAlert('Document deleted successfully')
+        fetchData()
+        handleCloseDocumentMenu()
+      } catch (error) {
+        console.error('Failed to delete document:', error)
+        showErrorAlert(error.response?.data?.detail || 'Failed to delete document')
+      } finally {
+        closeAlert()
+      }
+    }
+  }
+
   if (loading && !shipment) {
-    return <PageSkeleton showHeader={true} showTable={false} />
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
+      </Box>
+    )
   }
 
   if (!shipment) {
@@ -481,14 +517,32 @@ const ComplianceDetail = () => {
           </Avatar>
           <Box sx={{ flex: 1 }}>
             <Typography variant="h4" fontWeight={700} color="text.primary">
-              Compliance Details
+              Checklist Details
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <LocalShipping fontSize="inherit" />
               {shipment.shipment_number} • {shipment.origin} → {shipment.destination}
             </Typography>
           </Box>
-          <Stack direction="row" spacing={2}>
+          <Stack direction="row" spacing={2} sx={{ flexWrap: 'wrap', gap: 1 }}>
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<ChatBubbleOutline />}
+              onClick={() => setOpenQueriesDrawer(true)}
+              sx={{ borderRadius: 2 }}
+            >
+              Queries
+            </Button>
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<Message />}
+              onClick={() => setOpenChatDrawer(true)}
+              sx={{ borderRadius: 2 }}
+            >
+              Client Chat
+            </Button>
             <Button
               variant="outlined"
               startIcon={<Upload />}
@@ -1236,7 +1290,7 @@ const ComplianceDetail = () => {
           </Typography>
           <ShipmentQueries 
             shipmentId={shipmentId} 
-            isAdmin={isAdmin} 
+            isAdmin={isStaff} 
             user={user} 
           />
         </Paper>
@@ -1316,7 +1370,69 @@ const ComplianceDetail = () => {
             }}
           />
         </MenuItem>
+        
+        {isStaff && (
+          <MenuItem onClick={handleMenuDelete} sx={{ color: 'error.main' }}>
+            <ListItemIcon>
+              <Delete fontSize="small" color="error" />
+            </ListItemIcon>
+            <ListItemText 
+              primary="Delete" 
+              secondary="Permanently remove this document"
+              primaryTypographyProps={{ color: 'error.main' }}
+            />
+          </MenuItem>
+        )}
       </Menu>
+
+      {/* Queries Right Drawer */}
+      <Drawer
+        anchor="right"
+        open={openQueriesDrawer}
+        onClose={() => setOpenQueriesDrawer(false)}
+        PaperProps={{
+          sx: { width: { xs: '100%', sm: 600, md: 800 }, p: { xs: 2, sm: 4 }, bgcolor: '#F8F9FA' }
+        }}
+      >
+        <Stack direction="row" alignItems="center" justifyContent="space-between" mb={4}>
+          <Typography variant="h5" fontWeight={800} display="flex" alignItems="center" gap={1.5}>
+            <ChatBubbleOutline color="primary" /> Checklist Queries
+          </Typography>
+          <IconButton onClick={() => setOpenQueriesDrawer(false)}>
+            <Close />
+          </IconButton>
+        </Stack>
+        <Box sx={{ flex: 1, overflowY: 'auto' }}>
+          <ShipmentQueries shipmentId={shipmentId} isAdmin={isStaff} user={user} />
+        </Box>
+      </Drawer>
+
+      {/* Client Chat Right Drawer */}
+      <Drawer
+        anchor="right"
+        open={openChatDrawer}
+        onClose={() => setOpenChatDrawer(false)}
+        PaperProps={{
+          sx: { width: { xs: '100%', sm: 500, md: 500 }, p: { xs: 2, sm: 4 }, bgcolor: '#F8F9FA' }
+        }}
+      >
+        <Stack direction="row" alignItems="center" justifyContent="space-between" mb={4}>
+          <Typography variant="h5" fontWeight={800} display="flex" alignItems="center" gap={1.5}>
+            <Message color="secondary" /> Client Support Chat
+          </Typography>
+          <IconButton onClick={() => setOpenChatDrawer(false)}>
+            <Close />
+          </IconButton>
+        </Stack>
+        <Box sx={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+          {shipment?.client_id ? (
+             <ClientMessages shipmentId={shipmentId} clientId={shipment.client_id} isAdmin={isStaff} />
+          ) : (
+            <Alert severity="warning">This shipment is not linked to a client account.</Alert>
+          )}
+        </Box>
+      </Drawer>
+
     </Box>
   )
 }

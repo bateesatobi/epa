@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
+import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../contexts/AuthContext'
 import {
   Box,
   Typography,
@@ -88,8 +90,9 @@ import { alpha } from '@mui/material/styles'
 
 const Shipments = () => {
   const navigate = useNavigate()
-  const [shipments, setShipments] = useState([])
-  const [loading, setLoading] = useState(true)
+  const { user } = useAuth()
+  const isAdmin = user?.roles?.some(r => r.name === 'admin') ?? false
+  // Local UI States
   const [submitting, setSubmitting] = useState(false)
   const [openDialog, setOpenDialog] = useState(false)
   const [editingShipment, setEditingShipment] = useState(null)
@@ -109,84 +112,62 @@ const Shipments = () => {
   const [actionMenu, setActionMenu] = useState({ anchorEl: null, shipment: null })
   const [openAssignmentsDialog, setOpenAssignmentsDialog] = useState(false)
   const [activityAssignments, setActivityAssignments] = useState([])
-  const [fieldStaffUsers, setFieldStaffUsers] = useState([])
-  const [clients, setClients] = useState([])
-  const [depots, setDepots] = useState([])
   const [selectedClient, setSelectedClient] = useState(null)
   const [selectedShipments, setSelectedShipments] = useState([])
-  const [clearanceActivities, setClearanceActivities] = useState([])
-  const [activityCounts, setActivityCounts] = useState({ total: 0, by_activity: {} })
   const [assignmentFormData, setAssignmentFormData] = useState({
     user_id: '',
     clearance_activity_ids: [],
     notes: '',
   })
 
-  useEffect(() => {
-    fetchClearanceActivities()
-    fetchFieldStaffUsers()
-    fetchClients()
-    fetchDepots()
-    fetchActivityCounts()
-  }, [])
+  // Queries
+  const { data: activityCounts = { total: 0, by_activity: {} }, refetch: fetchActivityCounts } = useQuery({
+    queryKey: ['activityCounts'],
+    queryFn: shipmentsAPI.getClearanceActivityCounts,
+    staleTime: 30000,
+  })
 
-  useEffect(() => {
-    if (clearanceActivities.length > 0 || tabValue === 0) {
-      fetchShipments()
-    }
-  }, [tabValue, clearanceActivities.length])
-
-  const fetchActivityCounts = async () => {
-    try {
-      const data = await shipmentsAPI.getClearanceActivityCounts()
-      setActivityCounts(data)
-    } catch (error) {
-      console.error('Failed to fetch activity counts:', error)
-    }
-  }
-
-  const fetchClearanceActivities = async () => {
-    try {
+  const { data: clearanceActivities = [] } = useQuery({
+    queryKey: ['clearanceActivitiesActive'],
+    queryFn: async () => {
       const data = await clearanceActivitiesAPI.list({ is_active: true })
-      setClearanceActivities(Array.isArray(data) ? data : [])
-    } catch (error) {
-      console.error('Failed to load clearance activities')
-      setClearanceActivities([])
-    }
-  }
-  
-  const fetchClients = async () => {
-    try {
+      return Array.isArray(data) ? data : []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const { data: clients = [] } = useQuery({
+    queryKey: ['clientsApproved'],
+    queryFn: async () => {
       const data = await clientsAPI.list({ status: 'approved', limit: 100 })
-      setClients(data.items || [])
-    } catch (error) {
-      console.error('Failed to load clients')
-    }
-  }
+      return data.items || []
+    },
+    staleTime: 5 * 60 * 1000,
+  })
 
-  const fetchDepots = async () => {
-    try {
+  const { data: depots = [] } = useQuery({
+    queryKey: ['depotsActive'],
+    queryFn: async () => {
       const data = await depotsAPI.list({ is_active: true })
-      const depotsList = Array.isArray(data) ? data : (data?.items || [])
-      setDepots(depotsList)
-    } catch (error) {
-      console.error('Failed to load depots:', error)
-      setDepots([])
-    }
-  }
+      return Array.isArray(data) ? data : (data?.items || [])
+    },
+    staleTime: 5 * 60 * 1000,
+  })
 
-  const fetchFieldStaffUsers = async () => {
-    try {
+  const { data: fieldStaffUsers = [] } = useQuery({
+    queryKey: ['fieldStaff'],
+    queryFn: async () => {
       const data = await usersAPI.list({ role: 'field-staff', limit: 100 })
-      setFieldStaffUsers(data.items || [])
-    } catch (error) {
-      console.error('Failed to load field staff users')
-    }
-  }
+      return data.items || []
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: isAdmin,
+  })
 
-  const fetchShipments = async () => {
-    try {
-      setLoading(true)
+  // Dependent Main Shipments Query
+  const { data: shipments = [], isLoading: loading, refetch: fetchShipments } = useQuery({
+    queryKey: ['shipmentsList', tabValue, clearanceActivities],
+    queryFn: async () => {
       const sortedActivities = [...clearanceActivities].sort((a, b) => (a.priority || 0) - (b.priority || 0))
       const selectedActivityId = tabValue === 0 
         ? undefined 
@@ -203,14 +184,12 @@ const Shipments = () => {
         const dateB = new Date(b.updated_at || b.created_at || 0)
         return dateB - dateA
       })
-      setShipments(sorted)
-      fetchActivityCounts()
-    } catch (error) {
-      toast.error('Failed to load shipments')
-    } finally {
-      setLoading(false)
-    }
-  }
+      fetchActivityCounts() // update counts asynchronously
+      return sorted
+    },
+    enabled: clearanceActivities.length > 0 || tabValue === 0, // only fetch when ready
+    placeholderData: keepPreviousData,
+  })
 
   const handleOpenDialog = () => {
     setEditingShipment(null)
@@ -495,11 +474,6 @@ const Shipments = () => {
 
       {/* Main Table Deck */}
       <Box sx={{ position: 'relative' }}>
-        {loading && (
-          <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(255,255,255,0.7)', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 3 }}>
-            <CircularProgress color="primary" />
-          </Box>
-        )}
         <DataTable
           columns={[
             {

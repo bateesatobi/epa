@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import {
   Box,
   Typography,
@@ -46,6 +46,7 @@ import {
 } from '@mui/icons-material'
 import { reportsAPI } from '../services/api'
 import { toast } from 'react-toastify'
+import { useQuery } from '@tanstack/react-query'
 import { PageSkeleton, SkeletonCard, SkeletonStatCard } from '../components/LoadingStates'
 import {
   BarChart,
@@ -68,23 +69,13 @@ import {
 const COLORS = ['#01A3DA', '#000000', '#64748B', '#94A3B8', '#CBD5E1', '#E2E8F0', '#F1F5F9']
 
 const Reports = () => {
-  const [kpis, setKpis] = useState(null)
-  const [activityAnalytics, setActivityAnalytics] = useState(null)
-  const [fieldStaffAnalytics, setFieldStaffAnalytics] = useState(null)
-  const [overdueAnalytics, setOverdueAnalytics] = useState(null)
-  const [timelineAnalytics, setTimelineAnalytics] = useState(null)
-  const [loading, setLoading] = useState(true)
   const [reportDate, setReportDate] = useState(new Date().toISOString().split('T')[0])
   const [tabValue, setTabValue] = useState(0)
   const [timelineDays, setTimelineDays] = useState(30)
 
-  useEffect(() => {
-    fetchReports()
-  }, [])
-
-  const fetchReports = async () => {
-    try {
-      setLoading(true)
+  const { data: reportsData, isLoading: loading, refetch: fetchReports } = useQuery({
+    queryKey: ['reportsDashboard', timelineDays],
+    queryFn: async () => {
       const [
         kpisData,
         activityData,
@@ -98,18 +89,16 @@ const Reports = () => {
         reportsAPI.getOverdueAnalytics(),
         reportsAPI.getTimelineAnalytics(timelineDays),
       ])
-      setKpis(kpisData)
-      setActivityAnalytics(activityData)
-      setFieldStaffAnalytics(fieldStaffData)
-      setOverdueAnalytics(overdueData)
-      setTimelineAnalytics(timelineData)
-    } catch (error) {
-      console.error('Failed to load reports:', error)
-      toast.error('Failed to load reports')
-    } finally {
-      setLoading(false)
-    }
-  }
+      return { kpisData, activityData, fieldStaffData, overdueData, timelineData }
+    },
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const kpis = reportsData?.kpisData || null
+  const activityAnalytics = reportsData?.activityData || null
+  const fieldStaffAnalytics = reportsData?.fieldStaffData || null
+  const overdueAnalytics = reportsData?.overdueData || null
+  const timelineAnalytics = reportsData?.timelineData || null
 
   const handleGenerateDaily = async () => {
     try {
@@ -132,18 +121,8 @@ const Reports = () => {
   // Show skeleton on initial load
   if (loading && !kpis) {
     return (
-      <Box>
-        <Box sx={{ mb: 3 }}>
-          <PageSkeleton showHeader={true} showTable={false} />
-        </Box>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
-            <SkeletonCard height={300} />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <SkeletonCard height={300} />
-          </Grid>
-        </Grid>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
+        <CircularProgress />
       </Box>
     )
   }
