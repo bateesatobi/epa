@@ -610,6 +610,10 @@ export const clientsAPI = {
     const response = await api.delete(`/api/clients/${clientId}`)
     return response.data
   },
+  resetPassword: async (clientId, data) => {
+    const response = await api.patch(`/api/clients/${clientId}/reset-password`, data)
+    return response.data
+  },
 }
 
 // Depots API

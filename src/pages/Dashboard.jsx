@@ -174,7 +174,7 @@ const Dashboard = () => {
     queryKey: ['dashboardClients'],
     queryFn: async () => {
       const data = await clientsAPI.list({ status: 'approved', limit: 1000 })
-      return data.items || []
+      return Array.isArray(data) ? data : (data?.items || [])
     },
     staleTime: 5 * 60 * 1000 // Cache for 5 mins
   })
@@ -204,7 +204,7 @@ const Dashboard = () => {
         activityAnalytics: activityData,
         fieldStaffAnalytics: fieldStaffData,
         timelineAnalytics: timelineData,
-        shipments: shipmentsData.items || []
+        shipments: Array.isArray(shipmentsData) ? shipmentsData : (shipmentsData?.items || [])
       }
     } finally {
       setIsFiltering(false)

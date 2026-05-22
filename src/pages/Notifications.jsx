@@ -59,7 +59,7 @@ const Notifications = () => {
     queryFn: async () => {
       const statusParam = tabValue === 1 ? 'unread' : tabValue === 2 ? 'read' : undefined
       const response = await notificationsAPI.list({ status: statusParam, limit: 100 })
-      return response.items || []
+      return Array.isArray(response) ? response : (response?.items || [])
     },
     refetchInterval: 30000,
     staleTime: 5000,

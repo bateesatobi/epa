@@ -113,6 +113,7 @@ const Users = () => {
   const [statistics, setStatistics] = useState(null)
   const [tabValue, setTabValue] = useState(0)
   const [actionMenu, setActionMenu] = useState({ anchorEl: null, user: null })
+  const [clientActionMenu, setClientActionMenu] = useState({ anchorEl: null, client: null })
   const [approvalData, setApprovalData] = useState({ status: 'approved', rejection_reason: '' })
   
   const [formData, setFormData] = useState({
@@ -144,7 +145,7 @@ const Users = () => {
     queryKey: ['usersList'],
     queryFn: async () => {
       const data = await usersAPI.list()
-      return data.items || []
+      return Array.isArray(data) ? data : (data?.items || [])
     },
     staleTime: 5 * 60 * 1000,
   })
@@ -162,7 +163,7 @@ const Users = () => {
     queryKey: ['clientsList'],
     queryFn: async () => {
       const data = await clientsAPI.list()
-      return data.items || []
+      return Array.isArray(data) ? data : (data?.items || [])
     },
     staleTime: 5 * 60 * 1000,
   })
@@ -451,13 +452,23 @@ const Users = () => {
     
     try {
       if (editingUser) {
-        // Admin reset password
-        await usersAPI.resetPassword(editingUser.id, {
-          new_password: passwordData.new_password,
-          send_email: false,
-        })
-        closeAlert()
-        await showSuccessAlert('Password Reset', 'Password has been reset successfully')
+        if (editingUser.company_name !== undefined) {
+          // Admin reset client password
+          await clientsAPI.resetPassword(editingUser.id, {
+            new_password: passwordData.new_password,
+            send_email: false,
+          })
+          closeAlert()
+          await showSuccessAlert('Password Reset', 'Client password has been reset successfully')
+        } else {
+          // Admin reset user password
+          await usersAPI.resetPassword(editingUser.id, {
+            new_password: passwordData.new_password,
+            send_email: false,
+          })
+          closeAlert()
+          await showSuccessAlert('Password Reset', 'User password has been reset successfully')
+        }
       } else {
         // User change own password
         await authAPI.changePassword(
@@ -640,6 +651,15 @@ const Users = () => {
     setActionMenu({ anchorEl: null, user: null })
   }
 
+  const handleOpenClientActionsMenu = (event, client) => {
+    event.stopPropagation()
+    setClientActionMenu({ anchorEl: event.currentTarget, client })
+  }
+
+  const handleCloseClientActionsMenu = () => {
+    setClientActionMenu({ anchorEl: null, client: null })
+  }
+
   const roleIconMap = {
     admin: <AdminPanelSettings sx={{ fontSize: 16 }} />,
     'field-staff': <LocalShipping sx={{ fontSize: 16 }} />,
@@ -694,28 +714,24 @@ const Users = () => {
         </Stack>
       </Box>
 
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid #F0F0F0', bgcolor: '#FAFAFA' }}>
+      <Box sx={{ display: 'flex', gap: 3, mb: 4, flexWrap: 'wrap' }}>
+        {[
+          { title: 'Total Users', value: users.length, color: '#000' },
+          { title: 'Active Sessions', value: users.filter(u => u.is_active).length, color: '#01A3DA' },
+          { title: 'Total Admins', value: users.filter(u => u.roles?.some(r => r.name === 'admin')).length, color: '#4CAF50' },
+          { title: 'Field Staff', value: users.filter(u => u.roles?.some(r => r.name === 'field-staff')).length, color: '#FF9800' },
+          { title: 'Total Clients', value: clients.length, color: '#9C27B0' },
+        ].map((stat, i) => (
+          <Paper key={i} elevation={0} sx={{ flex: '1 1 180px', p: 2.5, borderRadius: 3, border: '1px solid #F0F0F0', bgcolor: '#FAFAFA' }}>
             <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-              Total Users
+              {stat.title}
             </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, mt: 1, color: '#000' }}>
-              {users.length}
+            <Typography variant="h4" sx={{ fontWeight: 800, mt: 1, color: stat.color }}>
+              {stat.value}
             </Typography>
           </Paper>
-        </Grid>
-        <Grid item xs={12} sm={6} md={3}>
-          <Paper elevation={0} sx={{ p: 2.5, borderRadius: 3, border: '1px solid #F0F0F0', bgcolor: '#FAFAFA' }}>
-            <Typography variant="caption" sx={{ color: 'text.secondary', fontWeight: 600, textTransform: 'uppercase', letterSpacing: 1 }}>
-              Active Sessions
-            </Typography>
-            <Typography variant="h4" sx={{ fontWeight: 800, mt: 1, color: '#01A3DA' }}>
-              {users.filter(u => u.is_active).length}
-            </Typography>
-          </Paper>
-        </Grid>
-      </Grid>
+        ))}
+      </Box>
 
       <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Tabs
@@ -1312,7 +1328,7 @@ const Users = () => {
       <FormDialog
         open={openPasswordDialog}
         onClose={() => setOpenPasswordDialog(false)}
-        title={editingUser ? 'Reset User Password' : 'Change Password'}
+        title={editingUser ? 'Reset Password' : 'Change Password'}
         onSubmit={handleChangePassword}
         submitText={editingUser ? 'Reset Password' : 'Change Password'}
         loading={submitting}
@@ -1662,63 +1678,73 @@ const Users = () => {
               align: 'right',
               render: (row) => (
                 <Stack direction="row" spacing={1} justifyContent="flex-end">
-                  <Tooltip title="View details">
+                  <Tooltip title="More actions">
                     <IconButton
                       size="small"
-                      onClick={() => handleViewClient(row)}
+                      onClick={(e) => handleOpenClientActionsMenu(e, row)}
                       color="primary"
                     >
-                      <Visibility fontSize="small" />
+                      <MoreVert fontSize="small" />
                     </IconButton>
                   </Tooltip>
-                  {row.status === 'pending' && (
-                    <Tooltip title="Approve/Reject">
-                      <IconButton
-                        size="small"
-                        onClick={() => {
-                          setViewingClient(row)
-                          setOpenClientApproveDialog(true)
-                        }}
-                        color="success"
-                      >
-                        <CheckCircle fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  )}
-                  {row.status === 'approved' && (
-                    <>
-                      {row.is_active ? (
-                        <Tooltip title="Deactivate account">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleDeactivateClient(row.id)}
-                            color="warning"
-                          >
-                            <Block fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      ) : (
-                        <Tooltip title="Activate account">
-                          <IconButton
-                            size="small"
-                            onClick={() => handleActivateClient(row.id)}
-                            color="success"
-                          >
-                            <CheckCircle fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </>
-                  )}
-                  <Tooltip title="Delete account">
-                    <IconButton
-                      size="small"
-                      onClick={() => handleDeleteClient(row.id)}
-                      color="error"
-                    >
-                      <Delete fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
+                  <Menu
+                    anchorEl={clientActionMenu.anchorEl}
+                    open={Boolean(clientActionMenu.anchorEl) && clientActionMenu.client?.id === row.id}
+                    onClose={handleCloseClientActionsMenu}
+                    onClick={handleCloseClientActionsMenu}
+                    PaperProps={{
+                      sx: { minWidth: 200, boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }
+                    }}
+                  >
+                    <MenuItem onClick={() => handleViewClient(row)}>
+                      <ListItemIcon>
+                        <Visibility fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText>View Details</ListItemText>
+                    </MenuItem>
+                    {row.status === 'pending' && (
+                      <MenuItem onClick={() => {
+                        setViewingClient(row)
+                        setOpenClientApproveDialog(true)
+                      }}>
+                        <ListItemIcon>
+                          <CheckCircle fontSize="small" color="success" />
+                        </ListItemIcon>
+                        <ListItemText>Approve/Reject</ListItemText>
+                      </MenuItem>
+                    )}
+                    {row.status === 'approved' && (
+                      <>
+                        <MenuItem onClick={() => handleOpenPasswordDialog(row)}>
+                          <ListItemIcon>
+                            <VpnKey fontSize="small" />
+                          </ListItemIcon>
+                          <ListItemText>Reset Password</ListItemText>
+                        </MenuItem>
+                        {row.is_active ? (
+                          <MenuItem onClick={() => handleDeactivateClient(row.id)}>
+                            <ListItemIcon>
+                              <Block fontSize="small" color="warning" />
+                            </ListItemIcon>
+                            <ListItemText>Deactivate Account</ListItemText>
+                          </MenuItem>
+                        ) : (
+                          <MenuItem onClick={() => handleActivateClient(row.id)}>
+                            <ListItemIcon>
+                              <CheckCircle fontSize="small" color="success" />
+                            </ListItemIcon>
+                            <ListItemText>Activate Account</ListItemText>
+                          </MenuItem>
+                        )}
+                      </>
+                    )}
+                    <MenuItem onClick={() => handleDeleteClient(row.id)}>
+                      <ListItemIcon>
+                        <Delete fontSize="small" color="error" />
+                      </ListItemIcon>
+                      <ListItemText>Delete Account</ListItemText>
+                    </MenuItem>
+                  </Menu>
                 </Stack>
               ),
             },

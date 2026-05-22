@@ -140,7 +140,7 @@ const Shipments = () => {
     queryKey: ['clientsApproved'],
     queryFn: async () => {
       const data = await clientsAPI.list({ status: 'approved', limit: 100 })
-      return data.items || []
+      return Array.isArray(data) ? data : (data?.items || [])
     },
     staleTime: 5 * 60 * 1000,
   })
@@ -158,7 +158,7 @@ const Shipments = () => {
     queryKey: ['fieldStaff'],
     queryFn: async () => {
       const data = await usersAPI.list({ role: 'field-staff', limit: 100 })
-      return data.items || []
+      return Array.isArray(data) ? data : (data?.items || [])
     },
     staleTime: 5 * 60 * 1000,
     enabled: isAdmin,
@@ -179,7 +179,7 @@ const Shipments = () => {
         clearance_activity_id: selectedActivityId,
         limit: 100,
       })
-      const sorted = (data.items || []).sort((a, b) => {
+      const sorted = (Array.isArray(data) ? data : (data?.items || [])).sort((a, b) => {
         const dateA = new Date(a.updated_at || a.created_at || 0)
         const dateB = new Date(b.updated_at || b.created_at || 0)
         return dateB - dateA
