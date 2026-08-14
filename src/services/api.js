@@ -19,7 +19,9 @@ api.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    console.log(`[API Request] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`)
+    if (import.meta.env.DEV) {
+      console.log(`[API Request] ${config.method?.toUpperCase()} ${config.baseURL}${config.url}`)
+    }
     return config
   },
   (error) => {
@@ -247,42 +249,12 @@ export const shipmentsAPI = {
     const response = await api.post(`/api/shipments/${shipmentId}/clearance-activity-assignments/single-user-multiple`, data)
     return response.data
   },
-  // Old activity assignments (deprecated - use clearance activity assignments above)
-  createActivityAssignment: async (shipmentId, data) => {
-    const response = await api.post(`/api/shipments/${shipmentId}/activity-assignments`, data)
-    return response.data
-  },
-  listActivityAssignments: async (shipmentId) => {
-    const response = await api.get(`/api/shipments/${shipmentId}/activity-assignments`)
-    return response.data
-  },
-  getMyAssignments: async (params = {}) => {
-    const response = await api.get('/api/shipments/activity-assignments/my-assignments', { params })
-    return response.data
-  },
-  updateActivityAssignment: async (assignmentId, data) => {
-    const response = await api.put(`/api/shipments/activity-assignments/${assignmentId}`, data)
-    return response.data
-  },
-  // Clearance history
   getClearanceHistory: async (shipmentId) => {
     const response = await api.get(`/api/shipments/${shipmentId}/clearance-history`)
     return response.data
   },
   updateClearanceStatus: async (shipmentId, data) => {
     const response = await api.post(`/api/shipments/${shipmentId}/clearance-status`, data)
-    return response.data
-  },
-  deleteActivityAssignment: async (assignmentId) => {
-    const response = await api.delete(`/api/shipments/activity-assignments/${assignmentId}`)
-    return response.data
-  },
-  listAllActivityAssignments: async (params = {}) => {
-    const response = await api.get('/api/shipments/activity-assignments/all', { params })
-    return response.data
-  },
-  bulkCreateActivityAssignments: async (shipmentId, assignments) => {
-    const response = await api.post(`/api/shipments/${shipmentId}/activity-assignments/bulk`, assignments)
     return response.data
   },
   getTimeline: async (id) => {
@@ -709,6 +681,82 @@ export const queriesAPI = {
   delete: async (id) => {
     const response = await api.delete(`/api/queries/${id}`)
     return response.data
+  },
+}
+
+export const consignmentRequestQueriesAPI = {
+  listByRequest: async (requestId) => {
+    const response = await api.get(`/api/consignment-request-queries/request/${requestId}`)
+    return response.data
+  },
+  create: async (data) => {
+    const response = await api.post('/api/consignment-request-queries/', data)
+    return response.data
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/api/consignment-request-queries/${id}`, data)
+    return response.data
+  },
+  reply: async (id, replies) => {
+    const response = await api.patch(`/api/consignment-request-queries/${id}/reply`, replies)
+    return response.data
+  },
+  updateStatus: async (id, data) => {
+    const response = await api.patch(`/api/consignment-request-queries/${id}/status`, data)
+    return response.data
+  },
+  delete: async (id) => {
+    const response = await api.delete(`/api/consignment-request-queries/${id}`)
+    return response.data
+  },
+}
+
+export const consignmentRequestsAPI = {
+  list: async (params = {}) => {
+    const response = await api.get('/api/consignment-requests', { params })
+    return response.data
+  },
+  get: async (id) => {
+    const response = await api.get(`/api/consignment-requests/${id}`)
+    return response.data
+  },
+  review: async (id, data) => {
+    const response = await api.patch(`/api/consignment-requests/${id}/review`, data)
+    return response.data
+  },
+  promote: async (id, data) => {
+    const response = await api.post(`/api/consignment-requests/${id}/promote`, data)
+    return response.data
+  },
+  incoming: async () => {
+    const response = await api.get('/api/consignment-requests/incoming')
+    return response.data
+  },
+  createMy: async (data) => {
+    const response = await api.post('/api/consignment-requests', data)
+    return response.data
+  },
+  listMy: async () => {
+    const response = await api.get('/api/consignment-requests/my')
+    return response.data
+  },
+  updateMy: async (id, data) => {
+    const response = await api.put(`/api/consignment-requests/${id}`, data)
+    return response.data
+  },
+  uploadDocument: async (id, data) => {
+    const response = await api.post(`/api/consignment-requests/${id}/documents`, data)
+    return response.data
+  },
+  deleteDocument: async (requestId, docId) => {
+    await api.delete(`/api/consignment-requests/${requestId}/documents/${docId}`)
+  },
+  viewDocument: async (requestId, docId) => {
+    const response = await api.get(`/api/consignment-requests/${requestId}/documents/${docId}/view`)
+    return response.data
+  },
+  delete: async (id) => {
+    await api.delete(`/api/consignment-requests/${id}`)
   },
 }
 

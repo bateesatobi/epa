@@ -169,12 +169,12 @@ const Shipments = () => {
     queryKey: ['shipmentsList', tabValue, clearanceActivities],
     queryFn: async () => {
       const sortedActivities = [...clearanceActivities].sort((a, b) => (a.priority || 0) - (b.priority || 0))
-      const selectedActivityId = tabValue === 0 
-        ? undefined 
-        : (sortedActivities.length > 0 && sortedActivities[tabValue - 1] 
-          ? sortedActivities[tabValue - 1].id 
+      const selectedActivityId = tabValue === 0
+        ? undefined
+        : (sortedActivities.length > 0 && sortedActivities[tabValue - 1]
+          ? sortedActivities[tabValue - 1].id
           : undefined)
-      
+
       const data = await shipmentsAPI.list({
         clearance_activity_id: selectedActivityId,
         limit: 100,
@@ -222,22 +222,22 @@ const Shipments = () => {
     } else {
       throw new Error('Client is required')
     }
-    
+
     payload.origin = formData.origin?.trim() || ''
     payload.destination = formData.destination?.trim() || ''
     payload.consignee_name = formData.consignee_name?.trim() || ''
-    
+
     if (formData.shipper_name?.trim()) payload.shipper_name = formData.shipper_name.trim()
     if (formData.consignee_email?.trim()) payload.consignee_email = formData.consignee_email.trim()
     if (formData.consignee_phone?.trim()) payload.consignee_phone = formData.consignee_phone.trim()
     if (formData.container_number?.trim()) payload.container_number = formData.container_number.trim()
     if (formData.cargo_description?.trim()) payload.cargo_description = formData.cargo_description.trim()
-    
+
     if (formData.estimated_cost) {
       const cost = parseFloat(formData.estimated_cost)
       if (!isNaN(cost)) payload.estimated_cost = cost
     }
-    
+
     return payload
   }
 
@@ -290,7 +290,7 @@ const Shipments = () => {
     if (!actionMenu.shipment) return
     const shipmentId = actionMenu.shipment.id
     handleCloseActionsMenu()
-    
+
     const result = await showConfirmDialog(
       'Cancel Mission',
       'Are you sure you want to terminate this consignment mission?',
@@ -412,9 +412,9 @@ const Shipments = () => {
                 <Typography variant="body1" sx={{ opacity: 0.8 }}>Governance of global freight missions and clearance checkpoints</Typography>
               </Box>
             </Stack>
-            <Button 
-              variant="contained" 
-              startIcon={<Add />} 
+            <Button
+              variant="contained"
+              startIcon={<Add />}
               onClick={handleOpenDialog}
               sx={{ bgcolor: 'white', color: 'black', '&:hover': { bgcolor: alpha('#FFF', 0.8) }, fontWeight: 700, px: 3, py: 1.2, borderRadius: 2 }}
             >
@@ -437,13 +437,13 @@ const Shipments = () => {
             '& .MuiTabs-indicator': { height: 4, borderRadius: '4px 4px 0 0' }
           }}
         >
-          <Tab 
+          <Tab
             label={
               <Box sx={{ textAlign: 'left' }}>
                 <Typography variant="body2" fontWeight={700}>Global Fleet</Typography>
                 <Typography variant="caption" color="text.secondary">{activityCounts.total} missions</Typography>
               </Box>
-            } 
+            }
           />
           {clearanceActivities
             .sort((a, b) => (a.priority || 0) - (b.priority || 0))
@@ -509,9 +509,9 @@ const Shipments = () => {
               headerName: 'Checkpoint',
               render: (row) => (
                 <Stack direction="row" spacing={1}>
-                  <Chip 
-                    label={row.current_clearance_activity_name?.toUpperCase() || 'NOT STARTED'} 
-                    size="small" 
+                  <Chip
+                    label={row.current_clearance_activity_name?.toUpperCase() || 'NOT STARTED'}
+                    size="small"
                     variant={row.current_clearance_activity_name ? 'filled' : 'outlined'}
                     sx={{ fontWeight: 800, fontSize: '0.65rem', bgcolor: row.current_clearance_activity_name ? 'primary.light' : 'transparent', color: row.current_clearance_activity_name ? 'primary.main' : 'text.disabled' }}
                   />
@@ -567,26 +567,26 @@ const Shipments = () => {
             />
           </Grid>
           <Grid item xs={12} sm={6}>
-            <FormSelect 
-              label="Departure Depot" 
-              value={formData.origin} 
-              onChange={(e) => setFormData({...formData, origin: e.target.value})}
+            <FormSelect
+              label="Departure Depot"
+              value={formData.origin}
+              onChange={(e) => setFormData({ ...formData, origin: e.target.value })}
               options={depots.map(d => ({ value: d.name, label: d.name }))}
-              required 
+              required
             />
           </Grid>
           <Grid item xs={12} sm={6}>
-            <FormSelect 
-              label="Arrival Depot" 
-              value={formData.destination} 
-              onChange={(e) => setFormData({...formData, destination: e.target.value})}
+            <FormSelect
+              label="Arrival Depot"
+              value={formData.destination}
+              onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
               options={depots.map(d => ({ value: d.name, label: d.name }))}
-              required 
+              required
             />
           </Grid>
-          <Grid item xs={12} sm={6}><FormTextField label="Consignee Name" value={formData.consignee_name} onChange={(e) => setFormData({...formData, consignee_name: e.target.value})} required /></Grid>
-          <Grid item xs={12} sm={6}><FormTextField label="Consignee Phone" value={formData.consignee_phone} onChange={(e) => setFormData({...formData, consignee_phone: e.target.value})} /></Grid>
-          <Grid item xs={12}><FormTextField label="Mission Cargo Details" multiline rows={3} value={formData.cargo_description} onChange={(e) => setFormData({...formData, cargo_description: e.target.value})} required /></Grid>
+          <Grid item xs={12} sm={6}><FormTextField label="Consignee Name" value={formData.consignee_name} onChange={(e) => setFormData({ ...formData, consignee_name: e.target.value })} required /></Grid>
+          <Grid item xs={12} sm={6}><FormTextField label="Consignee Phone" value={formData.consignee_phone} onChange={(e) => setFormData({ ...formData, consignee_phone: e.target.value })} /></Grid>
+          <Grid item xs={12}><FormTextField label="Mission Cargo Details" multiline rows={3} value={formData.cargo_description} onChange={(e) => setFormData({ ...formData, cargo_description: e.target.value })} required /></Grid>
         </Grid>
       </FormDialog>
 
@@ -631,7 +631,7 @@ const Shipments = () => {
                 <FormSelect
                   label="Field Staff"
                   value={assignmentFormData.user_id}
-                  onChange={(e) => setAssignmentFormData({...assignmentFormData, user_id: e.target.value})}
+                  onChange={(e) => setAssignmentFormData({ ...assignmentFormData, user_id: e.target.value })}
                   options={fieldStaffUsers.map(u => ({ value: u.id, label: u.full_name }))}
                 />
               </Grid>
@@ -641,7 +641,7 @@ const Shipments = () => {
                   <Select
                     multiple
                     value={assignmentFormData.clearance_activity_ids}
-                    onChange={(e) => setAssignmentFormData({...assignmentFormData, clearance_activity_ids: e.target.value})}
+                    onChange={(e) => setAssignmentFormData({ ...assignmentFormData, clearance_activity_ids: e.target.value })}
                     label="Checkpoints"
                     renderValue={(sel) => sel.map(id => clearanceActivities.find(a => a.id === id)?.name).join(', ')}
                   >

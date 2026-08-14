@@ -52,7 +52,7 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
     declaration_ref: '',
     office_code: 'UGKLA',
     subject: '',
-    items: [{ item_no: '1', box_reference: '', details: '' }]
+    items: [{ item_no: '1', details: '' }]
   });
   
   const [selectedQuery, setSelectedQuery] = useState(null);
@@ -77,7 +77,7 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
   const handleAddItem = () => {
     setFormData({
       ...formData,
-      items: [...formData.items, { item_no: (formData.items.length + 1).toString(), box_reference: '', details: '' }]
+      items: [...formData.items, { item_no: (formData.items.length + 1).toString(), details: '' }]
     });
   };
 
@@ -174,7 +174,7 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
                 declaration_ref: '',
                 office_code: 'UGKLA',
                 subject: '',
-                items: [{ item_no: '1', box_reference: '', details: '' }]
+                items: [{ item_no: '1', details: '' }]
               });
               setOpenForm(true);
             }}
@@ -234,7 +234,6 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
                   <TableHead>
                     <TableRow sx={{ bgcolor: '#EDF2F7' }}>
                       <TableCell sx={{ fontWeight: 700, width: 80 }}>Item No.</TableCell>
-                      <TableCell sx={{ fontWeight: 700, width: 150 }}>Box Ref</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>Query Details</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>Client Reply</TableCell>
                     </TableRow>
@@ -243,7 +242,6 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
                     {(query.items || []).map((item) => (
                       <TableRow key={item.id} hover>
                         <TableCell>{item.item_no}</TableCell>
-                        <TableCell><Typography variant="body2" fontWeight={600}>{item.box_reference || '—'}</Typography></TableCell>
                         <TableCell><Typography variant="body2">{item.details}</Typography></TableCell>
                         <TableCell>
                           {item.client_reply ? (
@@ -344,16 +342,7 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
                       fullWidth size="small"
                     />
                   </Grid>
-                  <Grid item xs={3}>
-                    <TextField 
-                      label="Box Ref" 
-                      placeholder="e.g. 7"
-                      value={item.box_reference} 
-                      onChange={(e) => handleItemChange(index, 'box_reference', e.target.value)}
-                      fullWidth size="small"
-                    />
-                  </Grid>
-                  <Grid item xs={6}>
+                  <Grid item xs={9}>
                     <TextField 
                       label="Query Details" 
                       multiline rows={2}
@@ -389,7 +378,7 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
             {selectedQuery?.items.map(item => (
               <Box key={item.id}>
                 <Typography variant="body2" fontWeight={700} color="primary" mb={0.5}>
-                  Item {item.item_no} {item.box_reference ? `(Box ${item.box_reference})` : ''}
+                  Item {item.item_no}
                 </Typography>
                 <Paper variant="outlined" sx={{ p: 1.5, mb: 1.5, bgcolor: '#F8F9FA' }}>
                   <Typography variant="body2">{item.details}</Typography>

@@ -35,6 +35,7 @@ const DataTable = ({
   onExport,
   onRefresh,
   filters,
+  searchPlaceholder = 'Search mission ID, consignee, status...',
 }) => {
   const [page, setPage] = useState(0)
   const [rowsPerPage, setRowsPerPage] = useState(10)
@@ -89,7 +90,7 @@ const DataTable = ({
         {searchable && (
           <TextField
             size="small"
-            placeholder="Search mission ID, consignee, status..."
+            placeholder={searchPlaceholder}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             InputProps={{

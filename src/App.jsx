@@ -2,17 +2,16 @@ import React from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ClientAuthProvider } from './contexts/ClientAuthContext'
 import { queryClient } from './config/queryClient'
+import { Box, CircularProgress } from '@mui/material'
 
-// Conditionally import DevTools (only in development)
-let ReactQueryDevtools = null
-if (process.env.NODE_ENV === 'development') {
-  try {
-    ReactQueryDevtools = require('@tanstack/react-query-devtools').ReactQueryDevtools
-  } catch (e) {
-    // DevTools not installed, that's okay
-  }
-}
+import ClientPortalRedirect from './components/client/ClientPortalRedirect'
+
+// Landing
+import LandingPage from './pages/landing/LandingPage'
+
+// Staff portal
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Layout from './components/Layout'
@@ -28,15 +27,19 @@ import Feedback from './pages/Feedback'
 import ShipmentClearanceHistoryPage from './pages/ShipmentClearanceHistoryPage'
 import Depots from './pages/Depots'
 import ClearanceActivities from './pages/ClearanceActivities'
-import ClientRegistration from './pages/ClientRegistration'
-import ClientLogin from './pages/ClientLogin'
-import ClientDashboard from './pages/ClientDashboard'
+import ConsignmentRequests from './pages/ConsignmentRequests'
 import NotFound from './pages/NotFound'
-import { Box, CircularProgress } from '@mui/material'
+
+let ReactQueryDevtools = null
+if (process.env.NODE_ENV === 'development') {
+  try {
+    ReactQueryDevtools = require('@tanstack/react-query-devtools').ReactQueryDevtools
+  } catch (e) {}
+}
 
 function PrivateRoute({ children }) {
   const { isAuthenticated, loading } = useAuth()
-  
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
@@ -44,19 +47,28 @@ function PrivateRoute({ children }) {
       </Box>
     )
   }
-  
+
   return isAuthenticated ? children : <Navigate to="/login" />
 }
 
 function AppRoutes() {
   return (
     <Routes>
+      {/* Public marketing */}
+      <Route path="/" element={<LandingPage />} />
+
+      {/* Client portal — canonical app is epa-client; redirect all /client/* routes */}
+      <Route path="/client/*" element={<ClientPortalRedirect />} />
+      <Route path="/client-login" element={<Navigate to="/client/login" replace />} />
+      <Route path="/client-register" element={<Navigate to="/client/register" replace />} />
+      <Route path="/client-dashboard" element={<Navigate to="/client/consignments" replace />} />
+
+      {/* Staff auth */}
       <Route path="/login" element={<Login />} />
-      <Route path="/client-register" element={<ClientRegistration />} />
-      <Route path="/client-login" element={<ClientLogin />} />
-      <Route path="/client-dashboard" element={<ClientDashboard />} />
+
+      {/* Staff portal (protected) */}
       <Route
-        path="/"
+        path="/dashboard"
         element={
           <PrivateRoute>
             <Layout />
@@ -76,11 +88,19 @@ function AppRoutes() {
         <Route path="feedback" element={<Feedback />} />
         <Route path="depots" element={<Depots />} />
         <Route path="clearance-activities" element={<ClearanceActivities />} />
-        {/* Unmatched sub-routes show NotFound */}
+        <Route path="consignment-requests" element={<ConsignmentRequests />} />
         <Route path="*" element={<NotFound />} />
       </Route>
-      {/* Completely unmatched top-level routes redirect to login */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+
+      {/* Legacy staff root redirect */}
+      <Route path="/users" element={<Navigate to="/dashboard/users" replace />} />
+      <Route path="/shipments/*" element={<Navigate to="/dashboard/shipments" replace />} />
+      <Route path="/compliance/*" element={<Navigate to="/dashboard/compliance" replace />} />
+      <Route path="/notifications" element={<Navigate to="/dashboard/notifications" replace />} />
+      <Route path="/reports" element={<Navigate to="/dashboard/reports" replace />} />
+      <Route path="/feedback" element={<Navigate to="/dashboard/feedback" replace />} />
+
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }
@@ -89,9 +109,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <AppRoutes />
+        <ClientAuthProvider>
+          <AppRoutes />
+        </ClientAuthProvider>
       </AuthProvider>
-      {/* React Query DevTools - only shows in development */}
       {process.env.NODE_ENV === 'development' && ReactQueryDevtools && (
         <ReactQueryDevtools initialIsOpen={false} />
       )}
@@ -100,4 +121,3 @@ function App() {
 }
 
 export default App
-

@@ -106,7 +106,7 @@ const ClientRegistration = () => {
         'Registration Successful!',
         'Your account has been submitted for approval. You will be notified once approved.'
       )
-      navigate('/client-login')
+      navigate('/client/login')
     } catch (error) {
       closeAlert()
       showErrorAlert('Registration Failed', error.response?.data?.detail || 'An error occurred during registration')
@@ -303,7 +303,7 @@ const ClientRegistration = () => {
             <Button
               variant="text"
               size="small"
-              onClick={() => navigate('/client-login')}
+              onClick={() => navigate('/client/login')}
               sx={{ textTransform: 'none' }}
             >
               Login here

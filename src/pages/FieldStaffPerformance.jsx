@@ -47,6 +47,21 @@ import { format } from 'date-fns'
 import { useQuery } from '@tanstack/react-query'
 import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 
+function hoursToDays(hours) {
+  if (hours == null || hours === undefined) return null
+  return (hours / 24).toFixed(1)
+}
+
+function durationFromTimestamps(startedAt, completedAt) {
+  if (!startedAt || !completedAt) return { hours: null, days: null }
+  const hours = (new Date(completedAt) - new Date(startedAt)) / (1000 * 3600)
+  if (hours < 0) return { hours: null, days: null }
+  return {
+    hours: hours.toFixed(1),
+    days: (hours / 24).toFixed(1),
+  }
+}
+
 const FieldStaffPerformance = () => {
   const [selectedStaffId, setSelectedStaffId] = useState(null)
   const [shipmentDetails, setShipmentDetails] = useState(null)
@@ -270,7 +285,8 @@ const FieldStaffPerformance = () => {
                 <TableCell align="center">In Progress</TableCell>
                 <TableCell align="center">Pending</TableCell>
                 <TableCell align="center">Completion Rate</TableCell>
-                <TableCell align="center">Avg. Time</TableCell>
+                <TableCell align="center">Avg. Time (hrs)</TableCell>
+                <TableCell align="center">Avg. Time (days)</TableCell>
                 <TableCell align="center">Actions</TableCell>
               </TableRow>
             </TableHead>
@@ -350,6 +366,17 @@ const FieldStaffPerformance = () => {
                     {member.average_completion_time_hours ? (
                       <Typography variant="body2">
                         {member.average_completion_time_hours.toFixed(1)}h
+                      </Typography>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        —
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell align="center">
+                    {member.average_completion_time_hours ? (
+                      <Typography variant="body2">
+                        {hoursToDays(member.average_completion_time_hours)}d
                       </Typography>
                     ) : (
                       <Typography variant="body2" color="text.secondary">
@@ -451,11 +478,15 @@ const FieldStaffPerformance = () => {
                             <TableCell>Assigned</TableCell>
                             <TableCell>Started</TableCell>
                             <TableCell>Completed</TableCell>
+                            <TableCell align="center">Duration (hrs)</TableCell>
+                            <TableCell align="center">Duration (days)</TableCell>
                             <TableCell>Last Updated</TableCell>
                           </TableRow>
                         </TableHead>
                         <TableBody>
-                          {shipment.activities.map((activity) => (
+                          {shipment.activities.map((activity) => {
+                            const duration = durationFromTimestamps(activity.started_at, activity.completed_at)
+                            return (
                             <TableRow key={activity.activity_id}>
                               <TableCell>
                                 <Typography variant="body2" fontWeight={500}>
@@ -512,6 +543,28 @@ const FieldStaffPerformance = () => {
                                   </Typography>
                                 )}
                               </TableCell>
+                              <TableCell align="center">
+                                {duration.hours != null ? (
+                                  <Typography variant="body2" fontSize="0.75rem">
+                                    {duration.hours}h
+                                  </Typography>
+                                ) : (
+                                  <Typography variant="body2" color="text.secondary">
+                                    —
+                                  </Typography>
+                                )}
+                              </TableCell>
+                              <TableCell align="center">
+                                {duration.days != null ? (
+                                  <Typography variant="body2" fontSize="0.75rem">
+                                    {duration.days}d
+                                  </Typography>
+                                ) : (
+                                  <Typography variant="body2" color="text.secondary">
+                                    —
+                                  </Typography>
+                                )}
+                              </TableCell>
                               <TableCell>
                                 {activity.last_updated_at ? (
                                   <Tooltip title={`Last updated by ${shipmentDetails.user_name}`}>
@@ -526,7 +579,8 @@ const FieldStaffPerformance = () => {
                                 )}
                               </TableCell>
                             </TableRow>
-                          ))}
+                            )
+                          })}
                         </TableBody>
                       </Table>
                     </TableContainer>

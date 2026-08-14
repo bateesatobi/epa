@@ -93,8 +93,8 @@ const StatCard = ({ title, value, icon, color, subtitle, loading, description, o
       ) : (
         <Box display="flex" justifyContent="space-between" alignItems="flex-start">
           <Box>
-            <Typography 
-              variant="caption" 
+            <Typography
+              variant="caption"
               fontWeight={700}
               sx={{ color: 'text.secondary', textTransform: 'uppercase', letterSpacing: 1, display: 'block', mb: 1 }}
             >
@@ -127,7 +127,7 @@ const StatCard = ({ title, value, icon, color, subtitle, loading, description, o
     {description && (
       <Box sx={{ px: 3, pb: 2 }}>
         <Typography variant="caption" color="text.disabled" sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-           {description}
+          {description}
         </Typography>
       </Box>
     )}
@@ -184,7 +184,7 @@ const Dashboard = () => {
     setIsFiltering(!!selectedClient)
     const clientId = selectedClient?.id || null
     const params = clientId ? { client_id: clientId } : {}
-    
+
     try {
       const [
         kpisData,
@@ -222,7 +222,7 @@ const Dashboard = () => {
   })
 
   const { kpis, activityAnalytics, fieldStaffAnalytics, timelineAnalytics, shipments = [] } = dashboardData || {}
-  
+
   // Use either the hard loading state or the component specific loading
   const loading = dashboardLoading
 
@@ -239,7 +239,7 @@ const Dashboard = () => {
     const totalPending = activityAnalytics?.activities?.reduce((sum, a) => sum + (a.pending || 0), 0) || 0
     const totalInProgress = activityAnalytics?.activities?.reduce((sum, a) => sum + (a.in_progress || 0), 0) || 0
     const totalCompleted = activityAnalytics?.activities?.reduce((sum, a) => sum + (a.completed || 0), 0) || 0
-    
+
     return [
       { name: 'Completed', value: totalCompleted, color: '#01A3DA' },
       { name: 'In Progress', value: totalInProgress, color: '#000000' },
@@ -279,13 +279,13 @@ const Dashboard = () => {
                 Operational Cockpit
               </Typography>
               <Typography variant="body1" sx={{ opacity: 0.8 }}>
-                {selectedClient 
+                {selectedClient
                   ? `Performance metrics for ${selectedClient.company_name || selectedClient.name}`
                   : 'Real-time intelligence and fleet governance overview'
                 }
               </Typography>
             </Box>
-            
+
             <Stack direction="row" spacing={2} alignItems="center">
               <Autocomplete
                 options={clients}
@@ -293,7 +293,7 @@ const Dashboard = () => {
                 value={selectedClient}
                 onChange={handleClientChange}
                 loading={clientsLoading}
-                sx={{ 
+                sx={{
                   minWidth: 280,
                   '& .MuiOutlinedInput-root': {
                     color: 'white',
@@ -306,8 +306,8 @@ const Dashboard = () => {
                 }}
                 renderInput={(params) => <TextField {...params} label="Filter by Client" size="small" />}
               />
-              <IconButton 
-                onClick={handleRefresh} 
+              <IconButton
+                onClick={handleRefresh}
                 sx={{ bgcolor: 'rgba(255,255,255,0.1)', color: 'white', '&:hover': { bgcolor: 'rgba(255,255,255,0.2)' } }}
               >
                 <Refresh />
@@ -316,17 +316,17 @@ const Dashboard = () => {
           </Stack>
         </Box>
         {/* Subtle decorative element */}
-        <Box 
-          sx={{ 
-            position: 'absolute', 
-            top: -20, 
-            right: -20, 
-            width: 200, 
-            height: 200, 
-            borderRadius: '50%', 
+        <Box
+          sx={{
+            position: 'absolute',
+            top: -20,
+            right: -20,
+            width: 200,
+            height: 200,
+            borderRadius: '50%',
             background: 'radial-gradient(circle, rgba(1, 163, 218, 0.2) 0%, transparent 70%)',
             zIndex: 0
-          }} 
+          }}
         />
       </Paper>
 
@@ -405,30 +405,30 @@ const Dashboard = () => {
                     <AreaChart data={monthlyData}>
                       <defs>
                         <linearGradient id="colorConsignments" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#01A3DA" stopOpacity={0.1}/>
-                          <stop offset="95%" stopColor="#01A3DA" stopOpacity={0}/>
+                          <stop offset="5%" stopColor="#01A3DA" stopOpacity={0.1} />
+                          <stop offset="95%" stopColor="#01A3DA" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                       <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#666' }} />
                       <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#666' }} />
-                      <RechartsTooltip 
+                      <RechartsTooltip
                         contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}
                       />
-                      <Area 
-                        type="monotone" 
-                        dataKey="consignments" 
-                        stroke="#01A3DA" 
-                        strokeWidth={3} 
-                        fill="url(#colorConsignments)" 
+                      <Area
+                        type="monotone"
+                        dataKey="consignments"
+                        stroke="#01A3DA"
+                        strokeWidth={3}
+                        fill="url(#colorConsignments)"
                         name="Volume"
                       />
-                      <Area 
-                        type="monotone" 
-                        dataKey="completed" 
-                        stroke="#000000" 
-                        strokeWidth={3} 
-                        fill="transparent" 
+                      <Area
+                        type="monotone"
+                        dataKey="completed"
+                        stroke="#000000"
+                        strokeWidth={3}
+                        fill="transparent"
                         name="Throughput"
                       />
                     </AreaChart>
@@ -481,8 +481,8 @@ const Dashboard = () => {
             <List disablePadding>
               {shipments.map((shipment, i) => (
                 <React.Fragment key={shipment.id}>
-                  <ListItem 
-                    button 
+                  <ListItem
+                    button
                     onClick={() => navigate(`/shipments/${shipment.id}`)}
                     sx={{ px: 0, py: 2, borderRadius: 2, '&:hover': { bgcolor: alpha('#01A3DA', 0.05) } }}
                   >
@@ -491,16 +491,16 @@ const Dashboard = () => {
                         <DirectionsBoatFilled fontSize="small" />
                       </Avatar>
                     </ListItemAvatar>
-                    <ListItemText 
-                      primary={shipment.shipment_number} 
+                    <ListItemText
+                      primary={shipment.shipment_number}
                       secondary={`${shipment.origin} → ${shipment.destination}`}
                       primaryTypographyProps={{ fontWeight: 700 }}
                     />
                     <Stack alignItems="flex-end" spacing={0.5}>
-                      <Chip 
-                        label={shipment.status.replace('_', ' ').toUpperCase()} 
-                        size="small" 
-                        sx={{ fontWeight: 800, fontSize: '0.65rem', bgcolor: 'primary.light', color: 'primary.main' }} 
+                      <Chip
+                        label={shipment.status.replace('_', ' ').toUpperCase()}
+                        size="small"
+                        sx={{ fontWeight: 800, fontSize: '0.65rem', bgcolor: 'primary.light', color: 'primary.main' }}
                       />
                       <Typography variant="caption" color="text.disabled">
                         {format(new Date(shipment.created_at), 'MMM dd, HH:mm')}

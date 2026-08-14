@@ -67,7 +67,6 @@ import {
   closeAlert,
 } from '../utils/alerts'
 import ShipmentQueries from '../components/ShipmentQueries'
-import ClientMessages from '../components/ClientMessages'
 
 const STATUS_STEPS = ['pending', 'in_transit', 'at_customs', 'awaiting_release', 'delivered']
 
@@ -118,7 +117,6 @@ const ShipmentDetail = () => {
     notes: '',
   })
   const [submitting, setSubmitting] = useState(false)
-  const [communicationTab, setCommunicationTab] = useState(0)
 
   const fetchShipment = async (showLoader = true) => {
     if (!shipmentId) {
@@ -823,37 +821,23 @@ const ShipmentDetail = () => {
               )}
             </Paper>
 
-            {/* Communication Hub (Combined Queries & Client Messages) */}
+            {/* Queries — structured official queries + shipment comments */}
             <Paper elevation={0} sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#FFF', overflow: 'hidden' }}>
-              <Tabs
-                value={communicationTab}
-                onChange={(e, newValue) => setCommunicationTab(newValue)}
-                variant="fullWidth"
-                sx={{
-                  borderBottom: 1,
-                  borderColor: 'divider',
-                  '& .MuiTab-root': { fontWeight: 800, py: 2 },
-                }}
-              >
-                <Tab label="Official Queries" />
-                <Tab label="Client Chat" />
-              </Tabs>
+              <Box sx={{ px: 3, py: 2, borderBottom: 1, borderColor: 'divider' }}>
+                <Typography variant="subtitle1" fontWeight={800}>
+                  Queries
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Official structured queries for this consignment
+                </Typography>
+              </Box>
 
               <Box sx={{ p: 3 }}>
-                {communicationTab === 0 && (
-                  <ShipmentQueries 
-                    shipmentId={shipmentId} 
-                    isAdmin={isStaff} 
-                    user={user} 
-                  />
-                )}
-                {communicationTab === 1 && shipment.client_id && (
-                  <ClientMessages
-                    shipmentId={shipmentId}
-                    clientId={shipment.client_id}
-                    isAdmin={isStaff}
-                  />
-                )}
+                <ShipmentQueries 
+                  shipmentId={shipmentId} 
+                  isAdmin={isStaff} 
+                  user={user} 
+                />
               </Box>
             </Paper>
 

@@ -50,7 +50,7 @@ const Login = () => {
       if (result.success) {
         closeAlert()
         await showSuccessAlert('Welcome!', 'Login successful')
-        navigate('/')
+        navigate('/dashboard')
       } else {
         closeAlert()
         setError(result.error || 'Login failed')

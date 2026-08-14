@@ -45,6 +45,7 @@ import {
   ChevronRight,
   ChatBubbleOutline as ChatIcon,
   SupportAgent as SupportIcon,
+  Assignment,
 } from '@mui/icons-material'
 import HubIcon from '@mui/icons-material/Hub'
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
@@ -68,14 +69,20 @@ const navigationSections = [
       { 
         text: 'Cockpit', 
         icon: <DashboardIcon />, 
-        path: '/',
+        path: '/dashboard',
         roles: ['admin', 'field-staff', 'reporting-officer']
       },
       {
         text: 'Consignments', 
         icon: <ShipmentsIcon />, 
-        path: '/shipments',
+        path: '/dashboard/shipments',
         roles: ['admin', 'field-staff', 'reporting-officer']
+      },
+      {
+        text: 'Consignment Requests',
+        icon: <Assignment />,
+        path: '/dashboard/consignment-requests',
+        roles: ['admin', 'reporting-officer']
       },
     ],
   },
@@ -87,19 +94,19 @@ const navigationSections = [
       { 
         text: 'Checklist', 
         icon: <ComplianceIcon />, 
-        path: '/compliance',
+        path: '/dashboard/compliance',
         roles: ['admin', 'field-staff', 'reporting-officer']
       },
       { 
         text: 'Reports', 
         icon: <ReportsIcon />, 
-        path: '/reports',
+        path: '/dashboard/reports',
         roles: ['admin', 'reporting-officer']
       },
       {
         text: 'Field Staff Performance',
         icon: <BarChartIcon />,
-        path: '/field-staff-performance',
+        path: '/dashboard/field-staff-performance',
         roles: ['admin']
       },
     ],
@@ -112,13 +119,13 @@ const navigationSections = [
       {
         text: 'Feedback & Support',
         icon: <ChatIcon />,
-        path: '/feedback',
+        path: '/dashboard/feedback',
         roles: ['admin', 'field-staff', 'reporting-officer']
       },
       {
         text: 'Notifications',
         icon: <Notifications />,
-        path: '/notifications',
+        path: '/dashboard/notifications',
         roles: ['admin', 'field-staff', 'reporting-officer']
       },
     ],
@@ -131,19 +138,19 @@ const navigationSections = [
       {
         text: 'Users',
         icon: <PeopleIcon />,
-        path: '/users',
+        path: '/dashboard/users',
         roles: ['admin']
       },
       {
         text: 'ICD/BOND',
         icon: <Warehouse />,
-        path: '/depots',
+        path: '/dashboard/depots',
         roles: ['admin', 'reporting-officer']
       },
       {
         text: 'Clearance Activities',
         icon: <TimelineIcon />,
-        path: '/clearance-activities',
+        path: '/dashboard/clearance-activities',
         roles: ['admin', 'field-staff', 'reporting-officer']
       },
     ],
@@ -261,7 +268,7 @@ const Layout = () => {
 
   const handleNotificationsViewAll = () => {
     handleNotificationsClose()
-    navigate('/notifications')
+    navigate('/dashboard/notifications')
   }
 
   const handleNotificationsMarkAllRead = async () => {
@@ -294,7 +301,7 @@ const Layout = () => {
     if (notification.resource_type === 'shipment' && notification.resource_id) {
       navigate(`/shipments/${notification.resource_id}`)
     } else {
-      navigate('/notifications', { state: { notificationId: notification.id } })
+      navigate('/dashboard/notifications', { state: { notificationId: notification.id } })
     }
   }
 
