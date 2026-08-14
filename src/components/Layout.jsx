@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState, useEffect } from 'react'
+import React, { useMemo, useState, useEffect } from 'react'
 import { Outlet, useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
@@ -54,6 +54,8 @@ import TimelineIcon from '@mui/icons-material/Timeline'
 import BarChartIcon from '@mui/icons-material/BarChart'
 import { useAuth } from '../contexts/AuthContext'
 import { notificationsAPI } from '../services/api'
+import { useAdminNotifications } from '../hooks/useNotifications'
+import { navigateFromAdminNotification, getSidebarAlertCounts, formatAlertCount } from '../utils/notificationNavigation'
 import { formatDistanceToNow } from 'date-fns'
 import EPALogo from './EPALogo'
 
@@ -76,13 +78,22 @@ const navigationSections = [
         text: 'Consignments', 
         icon: <ShipmentsIcon />, 
         path: '/dashboard/shipments',
-        roles: ['admin', 'field-staff', 'reporting-officer']
+        roles: ['admin', 'field-staff', 'reporting-officer'],
+        badgeKey: 'consignments',
+        extraBadges: [
+          { key: 'consignmentQueries', tone: 'query', label: 'queries' },
+          { key: 'consignmentFeedback', tone: 'feedback', label: 'feedback' },
+        ],
       },
       {
         text: 'Consignment Requests',
         icon: <Assignment />,
         path: '/dashboard/consignment-requests',
-        roles: ['admin', 'reporting-officer']
+        roles: ['admin', 'reporting-officer'],
+        badgeKey: 'requests',
+        extraBadges: [
+          { key: 'requestQueries', tone: 'query', label: 'queries' },
+        ],
       },
     ],
   },
@@ -120,13 +131,15 @@ const navigationSections = [
         text: 'Feedback & Support',
         icon: <ChatIcon />,
         path: '/dashboard/feedback',
-        roles: ['admin', 'field-staff', 'reporting-officer']
+        roles: ['admin', 'field-staff', 'reporting-officer'],
+        badgeKey: 'feedback',
       },
       {
         text: 'Notifications',
         icon: <Notifications />,
         path: '/dashboard/notifications',
-        roles: ['admin', 'field-staff', 'reporting-officer']
+        roles: ['admin', 'field-staff', 'reporting-officer'],
+        badgeKey: 'notifications',
       },
     ],
   },
@@ -182,9 +195,17 @@ const Layout = () => {
   const location = useLocation()
   const { user, logout } = useAuth()
   const [notificationsAnchorEl, setNotificationsAnchorEl] = useState(null)
-  const [unreadNotifications, setUnreadNotifications] = useState([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const {
+    unreadCount,
+    unreadNotifications,
+    unreadLoading: notificationsLoading,
+    refetchUnread,
+    invalidate: invalidateNotifications,
+  } = useAdminNotifications()
+  const sidebarAlerts = useMemo(
+    () => getSidebarAlertCounts(unreadNotifications, unreadCount),
+    [unreadNotifications, unreadCount]
+  )
 
   const drawerWidth = sidebarExpanded ? drawerWidthExpanded : drawerWidthCollapsed
 
@@ -211,55 +232,15 @@ const Layout = () => {
   )
   const notificationsMenuOpen = Boolean(notificationsAnchorEl)
 
-  const fetchUnreadCount = useCallback(async () => {
-    try {
-      const data = await notificationsAPI.getUnreadCount()
-      setUnreadCount(data.count || 0)
-    } catch (error) {
-      console.error('Failed to load unread count', error)
-    }
-  }, [])
-
-  const fetchUnreadNotifications = useCallback(async () => {
-    try {
-      setNotificationsLoading(true)
-      const data = await notificationsAPI.getUnread()
-      setUnreadNotifications(Array.isArray(data) ? data : [])
-      // Don't update count here - it's limited to 10 items, use fetchUnreadCount() instead
-    } catch (error) {
-      console.error('Failed to load notifications', error)
-    } finally {
-      setNotificationsLoading(false)
-    }
-  }, [])
-
   useEffect(() => {
-    fetchUnreadCount()
-    fetchUnreadNotifications()
-  }, [fetchUnreadCount, fetchUnreadNotifications])
-
-  useEffect(() => {
-    const handler = () => {
-      fetchUnreadCount()
-      fetchUnreadNotifications()
-    }
+    const handler = () => invalidateNotifications()
     window.addEventListener('notifications:updated', handler)
     return () => window.removeEventListener('notifications:updated', handler)
-  }, [fetchUnreadCount, fetchUnreadNotifications])
-
-  // Poll for new notifications every 30 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      fetchUnreadCount()
-      fetchUnreadNotifications()
-    }, 30000) // 30 seconds
-
-    return () => clearInterval(interval)
-  }, [fetchUnreadCount, fetchUnreadNotifications])
+  }, [invalidateNotifications])
 
   const handleNotificationsOpen = (event) => {
     setNotificationsAnchorEl(event.currentTarget)
-    fetchUnreadNotifications()
+    refetchUnread()
   }
 
   const handleNotificationsClose = () => {
@@ -274,8 +255,7 @@ const Layout = () => {
   const handleNotificationsMarkAllRead = async () => {
     try {
       await notificationsAPI.markAllRead()
-      setUnreadNotifications([])
-      setUnreadCount(0) // Update count immediately
+      invalidateNotifications()
       window.dispatchEvent(new Event('notifications:updated'))
     } catch (error) {
       console.error('Failed to mark notifications as read', error)
@@ -289,18 +269,14 @@ const Layout = () => {
     try {
       if (!notification.is_read) {
         await notificationsAPI.markRead(notification.id)
-        setUnreadNotifications((prev) => prev.filter((item) => item.id !== notification.id))
-        // Update count when a notification is marked as read
-        setUnreadCount((prev) => Math.max(0, prev - 1))
+        invalidateNotifications()
         window.dispatchEvent(new Event('notifications:updated'))
       }
     } catch (error) {
       console.error('Failed to update notification', error)
     }
 
-    if (notification.resource_type === 'shipment' && notification.resource_id) {
-      navigate(`/shipments/${notification.resource_id}`)
-    } else {
+    if (!navigateFromAdminNotification(navigate, notification)) {
       navigate('/dashboard/notifications', { state: { notificationId: notification.id } })
     }
   }
@@ -449,12 +425,41 @@ const Layout = () => {
                 {section.title}
               </ListSubheader>
             )}
-            {section.items.map((item, itemIndex) => {
+            {section.items.map((item) => {
               const isSelected = isPathActive(location.pathname, item.path)
+              const alertCount = item.badgeKey ? (sidebarAlerts[item.badgeKey] || 0) : 0
+              const extraBadgeItems = (item.extraBadges || [])
+                .map((badge) => ({
+                  ...badge,
+                  count: sidebarAlerts[badge.key] || 0,
+                  display: formatAlertCount(sidebarAlerts[badge.key] || 0),
+                }))
+                .filter((badge) => badge.display)
+              const visibleBadges = extraBadgeItems.length
+                ? extraBadgeItems
+                : (formatAlertCount(alertCount)
+                  ? [{ display: formatAlertCount(alertCount), tone: 'query', title: 'unread' }]
+                  : [])
+              const collapsedLabel = formatAlertCount(
+                alertCount || extraBadgeItems.reduce((sum, badge) => sum + badge.count, 0)
+              )
+              const tooltipDetail = extraBadgeItems.length
+                ? [
+                    collapsedLabel ? `${collapsedLabel} unread` : null,
+                    extraBadgeItems.map((badge) => `${badge.display} ${badge.label}`).join(', '),
+                  ].filter(Boolean).join(' · ')
+                : (collapsedLabel ? `${collapsedLabel} unread` : '')
+              const tooltipTitle = !sidebarExpanded
+                ? (tooltipDetail ? `${item.text} (${tooltipDetail})` : item.text)
+                : ''
+              const navIcon = React.cloneElement(item.icon, { 
+                fontSize: sidebarExpanded ? 'small' : 'medium',
+                sx: { fontSize: sidebarExpanded ? '20px' : '22px' }
+              })
               return (
                 <Tooltip 
                   key={item.text} 
-                  title={!sidebarExpanded ? item.text : ''} 
+                  title={tooltipTitle} 
                   placement="right"
                   arrow
                   PopperProps={{
@@ -537,10 +542,30 @@ const Layout = () => {
                           fontSize: '20px',
                         }}
                       >
-                        {React.cloneElement(item.icon, { 
-                          fontSize: sidebarExpanded ? 'small' : 'medium',
-                          sx: { fontSize: sidebarExpanded ? '20px' : '22px' }
-                        })}
+                        {collapsedLabel && !sidebarExpanded ? (
+                          <Badge
+                            badgeContent={collapsedLabel}
+                            color="error"
+                            overlap="circular"
+                            sx={{
+                              '& .MuiBadge-badge': {
+                                fontSize: '0.6rem',
+                                fontWeight: 700,
+                                minWidth: 16,
+                                height: 16,
+                                px: 0.4,
+                                right: -2,
+                                top: 2,
+                                bgcolor: '#ef4444',
+                                color: '#fff',
+                              },
+                            }}
+                          >
+                            {navIcon}
+                          </Badge>
+                        ) : (
+                          navIcon
+                        )}
                       </ListItemIcon>
                       {sidebarExpanded && (
                         <ListItemText 
@@ -555,6 +580,23 @@ const Layout = () => {
                           }}
                         />
                       )}
+                      {sidebarExpanded && visibleBadges.map((badge) => (
+                        <Chip
+                          key={`${item.text}-${badge.tone}-${badge.display}`}
+                          size="small"
+                          label={badge.display}
+                          sx={{
+                            ml: 0.5,
+                            height: 18,
+                            minWidth: 18,
+                            fontSize: '0.65rem',
+                            fontWeight: 700,
+                            bgcolor: badge.tone === 'feedback' ? '#f59e0b' : '#ef4444',
+                            color: badge.tone === 'feedback' ? '#111' : '#fff',
+                            '& .MuiChip-label': { px: 0.75 },
+                          }}
+                        />
+                      ))}
                     </ListItemButton>
                   </ListItem>
                 </Tooltip>

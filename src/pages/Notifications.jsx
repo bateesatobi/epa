@@ -10,7 +10,6 @@ import {
   Chip,
   IconButton,
   Tooltip,
-  Divider,
   Button,
   CircularProgress,
   Avatar,
@@ -30,8 +29,14 @@ import {
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'react-toastify'
 import { notificationsAPI } from '../services/api'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { PageSkeleton } from '../components/LoadingStates'
+import { useQueryClient } from '@tanstack/react-query'
+import { useNotificationList, invalidateNotifications, notificationKeys } from '../hooks/useNotifications'
+import {
+  notificationCategory,
+  notificationKindLabel,
+  navigateFromAdminNotification,
+  getAdminNotificationTarget,
+} from '../utils/notificationNavigation'
 
 const tabOptions = [
   { value: 0, label: 'All', icon: <Inbox fontSize="small" /> },
@@ -39,31 +44,38 @@ const tabOptions = [
   { value: 2, label: 'Read', icon: <MarkEmailRead fontSize="small" /> },
 ]
 
-const typeColorMap = {
-  alert: 'error',
-  warning: 'warning',
-  error: 'error',
-  info: 'info',
-  success: 'success',
-}
+const categoryOptions = [
+  { id: 'all', label: 'All types' },
+  { id: 'queries', label: 'Queries' },
+  { id: 'feedback', label: 'Feedback' },
+  { id: 'requests', label: 'Requests' },
+  { id: 'consignments', label: 'Consignments' },
+  { id: 'other', label: 'Other' },
+]
 
 const Notifications = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const [tabValue, setTabValue] = useState(0)
+  const [category, setCategory] = useState('all')
   const queryClient = useQueryClient()
   const focusNotificationId = location.state?.notificationId
 
-  const { data: notifications = [], isLoading: loading, refetch: fetchNotifications } = useQuery({
-    queryKey: ['notificationsList', tabValue],
-    queryFn: async () => {
-      const statusParam = tabValue === 1 ? 'unread' : tabValue === 2 ? 'read' : undefined
-      const response = await notificationsAPI.list({ status: statusParam, limit: 100 })
-      return Array.isArray(response) ? response : (response?.items || [])
-    },
-    refetchInterval: 30000,
-    staleTime: 5000,
-  })
+  const { data: notifications = [], isLoading: loading, refetch: fetchNotifications } = useNotificationList(tabValue)
+
+  const visibleNotifications = useMemo(() => {
+    if (category === 'all') return notifications
+    return notifications.filter((item) => notificationCategory(item) === category)
+  }, [notifications, category])
+
+  const categoryCounts = useMemo(() => {
+    const counts = { all: notifications.length, queries: 0, feedback: 0, requests: 0, consignments: 0, other: 0 }
+    for (const item of notifications) {
+      const key = notificationCategory(item)
+      counts[key] = (counts[key] || 0) + 1
+    }
+    return counts
+  }, [notifications])
 
   useEffect(() => {
     if (focusNotificationId) {
@@ -90,12 +102,13 @@ const Notifications = () => {
   const handleMarkRead = async (notification) => {
     try {
       await notificationsAPI.markRead(notification.id)
-      queryClient.setQueryData(['notificationsList', tabValue], (old) =>
+      queryClient.setQueryData(notificationKeys.list(tabValue), (old) =>
         old ? old.map((item) =>
           item.id === notification.id ? { ...item, is_read: true, read_at: new Date().toISOString() } : item
         ) : old
       )
       toast.success('Notification marked as read')
+      invalidateNotifications(queryClient)
       triggerGlobalRefresh()
     } catch (error) {
       console.error(error)
@@ -106,12 +119,13 @@ const Notifications = () => {
   const handleMarkUnread = async (notification) => {
     try {
       await notificationsAPI.markUnread(notification.id)
-      queryClient.setQueryData(['notificationsList', tabValue], (old) =>
+      queryClient.setQueryData(notificationKeys.list(tabValue), (old) =>
         old ? old.map((item) =>
           item.id === notification.id ? { ...item, is_read: false, read_at: null } : item
         ) : old
       )
       toast.success('Notification marked as unread')
+      invalidateNotifications(queryClient)
       triggerGlobalRefresh()
     } catch (error) {
       console.error(error)
@@ -122,10 +136,11 @@ const Notifications = () => {
   const handleDelete = async (notification) => {
     try {
       await notificationsAPI.delete(notification.id)
-      queryClient.setQueryData(['notificationsList', tabValue], (old) => 
+      queryClient.setQueryData(notificationKeys.list(tabValue), (old) => 
         old ? old.filter((item) => item.id !== notification.id) : old
       )
       toast.success('Notification deleted')
+      invalidateNotifications(queryClient)
       triggerGlobalRefresh()
     } catch (error) {
       console.error(error)
@@ -138,11 +153,7 @@ const Notifications = () => {
       await handleMarkRead(notification)
     }
 
-    if (notification.resource_type === 'shipment' && notification.resource_id) {
-      navigate(`/shipments/${notification.resource_id}`)
-    } else if (notification.resource_type === 'report') {
-      navigate('/reports')
-    } else {
+    if (!navigateFromAdminNotification(navigate, notification)) {
       toast.info('No linked resource for this notification')
     }
   }
@@ -231,11 +242,34 @@ const Notifications = () => {
         ))}
       </Tabs>
 
+      <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+        {categoryOptions.map((opt) => (
+          <Chip
+            key={opt.id}
+            label={
+              <Stack direction="row" spacing={0.75} alignItems="center">
+                <span>{opt.label}</span>
+                {categoryCounts[opt.id] > 0 && (
+                  <Box component="span" sx={{ fontWeight: 800 }}>
+                    {categoryCounts[opt.id]}
+                  </Box>
+                )}
+              </Stack>
+            }
+            clickable
+            color={category === opt.id ? 'primary' : 'default'}
+            variant={category === opt.id ? 'filled' : 'outlined'}
+            onClick={() => setCategory(opt.id)}
+            sx={{ fontWeight: 700 }}
+          />
+        ))}
+      </Stack>
+
       {loading && notifications.length === 0 ? (
         <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
           <CircularProgress />
         </Box>
-      ) : notifications.length === 0 ? (
+      ) : visibleNotifications.length === 0 ? (
         <Paper
           sx={{
             p: 4,
@@ -254,9 +288,8 @@ const Notifications = () => {
         </Paper>
       ) : (
         <Stack spacing={0}>
-          {notifications.map((notification) => {
+          {visibleNotifications.map((notification) => {
             const isUnread = !notification.is_read
-            const typeColor = typeColorMap[notification.notification_type] || 'default'
 
             return (
               <Paper
@@ -284,7 +317,7 @@ const Notifications = () => {
                   },
                 }}
                 onClick={() => {
-                  if (notification.resource_type && notification.resource_id) {
+                  if (getAdminNotificationTarget(notification)) {
                     handleView(notification)
                   }
                 }}
@@ -328,13 +361,21 @@ const Notifications = () => {
                         {notification.title}
                       </Typography>
                       <Chip
-                        label={notification.notification_type}
+                        label={notificationKindLabel(notification)}
                         size="small"
-                        color={typeColor}
+                        color={
+                          notificationKindLabel(notification) === 'Query'
+                            ? 'error'
+                            : notificationKindLabel(notification) === 'Feedback'
+                              ? 'warning'
+                              : 'default'
+                        }
+                        variant="outlined"
                         sx={{
                           height: 20,
                           fontSize: '0.65rem',
-                          fontWeight: 500,
+                          fontWeight: 700,
+                          textTransform: 'capitalize',
                         }}
                       />
                     </Stack>
@@ -366,7 +407,7 @@ const Notifications = () => {
                     sx={{ flexShrink: 0 }}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    {notification.resource_type && notification.resource_id && (
+                    {getAdminNotificationTarget(notification) && (
                       <Tooltip title="View linked resource">
                         <IconButton
                           size="small"

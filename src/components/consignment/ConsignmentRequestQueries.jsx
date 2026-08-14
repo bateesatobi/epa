@@ -177,9 +177,22 @@ export default function ConsignmentRequestQueries({ requestId, isAdmin }) {
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="subtitle2" fontWeight={800} display="flex" alignItems="center" gap={1}>
-          <Assignment color="primary" fontSize="small" /> Request queries
-        </Typography>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Typography variant="subtitle2" fontWeight={800} display="flex" alignItems="center" gap={1}>
+            <Assignment color="primary" fontSize="small" /> Request queries
+          </Typography>
+          {queries.length > 0 && (
+            <Chip size="small" label={`${queries.length} total`} sx={{ fontWeight: 800, fontSize: '0.65rem' }} />
+          )}
+          {queries.filter((q) => ['sent', 'replied', 'under_review'].includes(q.status)).length > 0 && (
+            <Chip
+              size="small"
+              color="error"
+              label={`${queries.filter((q) => ['sent', 'replied', 'under_review'].includes(q.status)).length} open`}
+              sx={{ fontWeight: 800, fontSize: '0.65rem' }}
+            />
+          )}
+        </Stack>
         {isAdmin && (
           <Button
             variant="contained"
@@ -239,6 +252,14 @@ export default function ConsignmentRequestQueries({ requestId, isAdmin }) {
                         color={statusColors[query.status] || 'default'}
                         sx={{ fontWeight: 800, fontSize: '0.65rem' }}
                       />
+                      {query.status === 'replied' && (
+                        <Chip
+                          label="Client replied"
+                          size="small"
+                          color="warning"
+                          sx={{ fontWeight: 800, fontSize: '0.65rem' }}
+                        />
+                      )}
                       {isAdmin && (
                         <>
                           <IconButton size="small" onClick={() => { setFormData(query); setOpenForm(true) }}>

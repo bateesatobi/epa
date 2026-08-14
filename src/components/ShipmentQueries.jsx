@@ -153,6 +153,7 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
   const statusColors = {
     sent: 'info',
     replied: 'warning',
+    under_review: 'secondary',
     resolved: 'success',
     closed: 'default',
   };
@@ -162,9 +163,26 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
   return (
     <Box>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h6" fontWeight={700} display="flex" alignItems="center" gap={1}>
-          <Assignment color="primary" /> Compliance Queries
-        </Typography>
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Typography variant="h6" fontWeight={700} display="flex" alignItems="center" gap={1}>
+            <Assignment color="primary" /> Compliance Queries
+          </Typography>
+          {queries.length > 0 && (
+            <Chip
+              size="small"
+              label={`${queries.length} total`}
+              sx={{ fontWeight: 800, fontSize: '0.65rem' }}
+            />
+          )}
+          {queries.filter((q) => ['sent', 'replied', 'under_review'].includes(q.status)).length > 0 && (
+            <Chip
+              size="small"
+              color="error"
+              label={`${queries.filter((q) => ['sent', 'replied', 'under_review'].includes(q.status)).length} open`}
+              sx={{ fontWeight: 800, fontSize: '0.65rem' }}
+            />
+          )}
+        </Stack>
         {isAdmin && (
           <Button 
             variant="contained" 
@@ -213,6 +231,14 @@ const ShipmentQueries = ({ shipmentId, isAdmin, user }) => {
                         color={statusColors[query.status] || 'default'}
                         sx={{ fontWeight: 800, fontSize: '0.65rem' }} 
                       />
+                      {query.status === 'replied' && (
+                        <Chip
+                          label="Client replied"
+                          size="small"
+                          color="warning"
+                          sx={{ fontWeight: 800, fontSize: '0.65rem' }}
+                        />
+                      )}
                       {isAdmin && (
                         <>
                           <IconButton size="small" onClick={() => { setFormData(query); setOpenForm(true); }}>

@@ -476,14 +476,14 @@ const Dashboard = () => {
           <Card elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider' }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
               <Typography variant="h6" fontWeight={800}>Recent Mission Log</Typography>
-              <Button size="small" onClick={() => navigate('/shipments')} sx={{ fontWeight: 700 }}>View All</Button>
+              <Button size="small" onClick={() => navigate('/dashboard/shipments')} sx={{ fontWeight: 700 }}>View All</Button>
             </Box>
             <List disablePadding>
               {shipments.map((shipment, i) => (
                 <React.Fragment key={shipment.id}>
                   <ListItem
                     button
-                    onClick={() => navigate(`/shipments/${shipment.id}`)}
+                    onClick={() => navigate(`/dashboard/shipments/${shipment.id}`)}
                     sx={{ px: 0, py: 2, borderRadius: 2, '&:hover': { bgcolor: alpha('#01A3DA', 0.05) } }}
                   >
                     <ListItemAvatar>

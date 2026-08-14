@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -79,6 +79,9 @@ import FormDialog from '../components/FormDialog'
 import FormTextField from '../components/FormTextField'
 import FormSelect from '../components/FormSelect'
 import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
+import ResourceAlertBadges from '../components/ResourceAlertBadges'
+import { useUnreadNotifications } from '../hooks/useNotifications'
+import { indexResourceAlerts } from '../utils/notificationNavigation'
 import {
   showSuccessAlert,
   showErrorAlert,
@@ -191,6 +194,12 @@ const Shipments = () => {
     placeholderData: keepPreviousData,
   })
 
+  const { data: unreadNotifications = [] } = useUnreadNotifications()
+  const resourceAlerts = useMemo(
+    () => indexResourceAlerts(unreadNotifications),
+    [unreadNotifications]
+  )
+
   const handleOpenDialog = () => {
     setEditingShipment(null)
     setSelectedClient(null)
@@ -211,6 +220,26 @@ const Shipments = () => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false)
+    setEditingShipment(null)
+  }
+
+  const shipmentDetailPath = (id) => `/dashboard/shipments/${id}`
+
+  const populateEditForm = (shipment) => {
+    const client = clients.find((c) => String(c.id) === String(shipment.client_id)) || null
+    setSelectedClient(client)
+    setFormData({
+      client_id: shipment.client_id || '',
+      origin: shipment.origin || '',
+      destination: shipment.destination || '',
+      shipper_name: shipment.shipper_name || '',
+      consignee_name: shipment.consignee_name || '',
+      consignee_email: shipment.consignee_email || '',
+      consignee_phone: shipment.consignee_phone || '',
+      container_number: shipment.container_number || '',
+      cargo_description: shipment.cargo_description || '',
+      estimated_cost: shipment.estimated_cost ?? '',
+    })
   }
 
   const normalizePayload = () => {
@@ -286,9 +315,17 @@ const Shipments = () => {
     setActionMenu({ anchorEl: null, shipment: null })
   }
 
+  const closeMenuAndRun = (fn) => {
+    const shipment = actionMenu.shipment
+    handleCloseActionsMenu()
+    if (!shipment?.id) return
+    fn(shipment)
+  }
+
   const handleCancelShipment = async () => {
-    if (!actionMenu.shipment) return
-    const shipmentId = actionMenu.shipment.id
+    const shipment = actionMenu.shipment
+    if (!shipment?.id) return
+    const shipmentId = shipment.id
     handleCloseActionsMenu()
 
     const result = await showConfirmDialog(
@@ -494,12 +531,25 @@ const Shipments = () => {
             {
               field: 'shipment_number',
               headerName: 'Mission ID',
-              render: (row) => (
-                <Stack direction="row" spacing={1.5} alignItems="center">
-                  {row.is_overdue && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'error.main' }} />}
-                  <Typography variant="body2" fontWeight={800}>{row.shipment_number}</Typography>
-                </Stack>
-              )
+              render: (row) => {
+                const unread = resourceAlerts[row.id] || {}
+                return (
+                  <Stack spacing={0.5}>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      {row.is_overdue && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'error.main' }} />}
+                      <Typography variant="body2" fontWeight={800}>{row.shipment_number}</Typography>
+                    </Stack>
+                    <ResourceAlertBadges
+                      queries={row.open_query_count}
+                      feedback={row.comment_count}
+                      unreadQueries={unread.queries}
+                      unreadFeedback={unread.feedback}
+                      onQueryClick={() => navigate(`${shipmentDetailPath(row.id)}?tab=queries`)}
+                      onFeedbackClick={() => navigate(`${shipmentDetailPath(row.id)}?tab=comments`)}
+                    />
+                  </Stack>
+                )
+              }
             },
             { field: 'origin', headerName: 'Origin' },
             { field: 'destination', headerName: 'Terminal' },
@@ -535,7 +585,7 @@ const Shipments = () => {
             }
           ]}
           data={shipments}
-          onRowClick={(row) => navigate(`/shipments/${row.id}`)}
+          onRowClick={(row) => navigate(shipmentDetailPath(row.id))}
           onExport={() => shipmentsAPI.exportExcel()}
           onRefresh={fetchShipments}
         />
@@ -596,15 +646,29 @@ const Shipments = () => {
         open={Boolean(actionMenu.anchorEl)}
         onClose={handleCloseActionsMenu}
       >
-        <MenuItem onClick={() => { navigate(`/shipments/${actionMenu.shipment.id}`); handleCloseActionsMenu(); }}>
+        <MenuItem
+          onClick={() =>
+            closeMenuAndRun((shipment) => navigate(shipmentDetailPath(shipment.id)))
+          }
+        >
           <ListItemIcon><Visibility fontSize="small" /></ListItemIcon>
           <ListItemText primary="Mission Cockpit" secondary="Full governance view" />
         </MenuItem>
-        <MenuItem onClick={() => { setEditingShipment(actionMenu.shipment); setOpenDialog(true); handleCloseActionsMenu(); }}>
+        <MenuItem
+          onClick={() =>
+            closeMenuAndRun((shipment) => {
+              setEditingShipment(shipment)
+              populateEditForm(shipment)
+              setOpenDialog(true)
+            })
+          }
+        >
           <ListItemIcon><Edit fontSize="small" /></ListItemIcon>
           <ListItemText primary="Edit Logs" secondary="Modify mission parameters" />
         </MenuItem>
-        <MenuItem onClick={() => { handleOpenAssignmentsDialog(actionMenu.shipment); handleCloseActionsMenu(); }}>
+        <MenuItem
+          onClick={() => closeMenuAndRun((shipment) => handleOpenAssignmentsDialog(shipment))}
+        >
           <ListItemIcon><Assignment fontSize="small" /></ListItemIcon>
           <ListItemText primary="Delegate Staff" secondary="Assign field staff to checkpoints" />
         </MenuItem>

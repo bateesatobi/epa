@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -67,6 +67,9 @@ import {
   closeAlert,
 } from '../utils/alerts'
 import ShipmentQueries from '../components/ShipmentQueries'
+import ResourceAlertBadges from '../components/ResourceAlertBadges'
+import { useUnreadNotifications } from '../hooks/useNotifications'
+import { indexResourceAlerts } from '../utils/notificationNavigation'
 
 const STATUS_STEPS = ['pending', 'in_transit', 'at_customs', 'awaiting_release', 'delivered']
 
@@ -95,6 +98,7 @@ const normaliseStatusLabel = (status) => {
 
 const ShipmentDetail = () => {
   const { shipmentId } = useParams()
+  const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { user, isAdmin, isStaff } = useAuth()
   const [shipment, setShipment] = useState(null)
@@ -117,6 +121,11 @@ const ShipmentDetail = () => {
     notes: '',
   })
   const [submitting, setSubmitting] = useState(false)
+  const { data: unreadNotifications = [] } = useUnreadNotifications()
+  const unreadForShipment = useMemo(
+    () => indexResourceAlerts(unreadNotifications)[Number(shipmentId)] || { queries: 0, feedback: 0 },
+    [unreadNotifications, shipmentId]
+  )
 
   const fetchShipment = async (showLoader = true) => {
     if (!shipmentId) {
@@ -174,6 +183,18 @@ const ShipmentDetail = () => {
     fetchShipment(true)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shipmentId])
+
+  useEffect(() => {
+    if (loading || !shipment) return
+    const tab = searchParams.get('tab')
+    const targetId =
+      tab === 'queries' ? 'shipment-queries' : tab === 'comments' ? 'shipment-comments' : null
+    if (!targetId) return
+    const timer = setTimeout(() => {
+      document.getElementById(targetId)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [loading, shipment, searchParams])
 
   // Get activities assigned to current user
   const myAssignments = useMemo(() => {
@@ -644,19 +665,22 @@ const ShipmentDetail = () => {
                 <ChatBubbleOutline />
               </Box>
               <Box>
-                <Typography variant="caption" sx={{ color: alpha('#FFF', 0.6) }} fontWeight={600}>OPEN QUERIES</Typography>
-                <Typography variant="h5" fontWeight={800}>{comments.length}</Typography>
+                <Typography variant="caption" sx={{ color: alpha('#FFF', 0.6) }} fontWeight={600}>QUERIES & FEEDBACK</Typography>
+                <Typography variant="h5" fontWeight={800}>
+                  {(shipment?.open_query_count || 0) + comments.length}
+                </Typography>
               </Box>
             </Stack>
-            <Button 
-              size="small" 
-              fullWidth 
-              variant="text" 
-              onClick={() => navigate(`/compliance/${shipmentId}`)}
-              sx={{ mt: 1, color: '#01A3DA', fontWeight: 700, p: 0, justifyContent: 'flex-start' }}
-            >
-              Manage Compliance →
-            </Button>
+            <Stack direction="row" spacing={0.5} sx={{ mt: 1 }} flexWrap="wrap" useFlexGap>
+              <ResourceAlertBadges
+                queries={shipment?.open_query_count}
+                feedback={comments.length}
+                unreadQueries={unreadForShipment.queries}
+                unreadFeedback={unreadForShipment.feedback}
+                onQueryClick={() => document.getElementById('shipment-queries')?.scrollIntoView({ behavior: 'smooth' })}
+                onFeedbackClick={() => document.getElementById('shipment-comments')?.scrollIntoView({ behavior: 'smooth' })}
+              />
+            </Stack>
           </Paper>
         </Grid>
       </Grid>
@@ -822,14 +846,22 @@ const ShipmentDetail = () => {
             </Paper>
 
             {/* Queries — structured official queries + shipment comments */}
-            <Paper elevation={0} sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#FFF', overflow: 'hidden' }}>
+            <Paper id="shipment-queries" elevation={0} sx={{ borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#FFF', overflow: 'hidden' }}>
               <Box sx={{ px: 3, py: 2, borderBottom: 1, borderColor: 'divider' }}>
-                <Typography variant="subtitle1" fontWeight={800}>
-                  Queries
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  Official structured queries for this consignment
-                </Typography>
+                <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1}>
+                  <Box>
+                    <Typography variant="subtitle1" fontWeight={800}>
+                      Queries
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Official structured queries for this consignment
+                    </Typography>
+                  </Box>
+                  <ResourceAlertBadges
+                    queries={shipment?.open_query_count}
+                    unreadQueries={unreadForShipment.queries}
+                  />
+                </Stack>
               </Box>
 
               <Box sx={{ p: 3 }}>
@@ -873,12 +905,15 @@ const ShipmentDetail = () => {
 
       {/* Internal Comments & Feedback - Footing Section (Full Width) */}
       <Box sx={{ mt: 6 }}>
-        <Paper elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#000000', color: '#FFF' }}>
+        <Paper id="shipment-comments" elevation={0} sx={{ p: 4, borderRadius: 4, border: '1px solid', borderColor: 'divider', bgcolor: '#000000', color: '#FFF' }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
             <Typography variant="h6" fontWeight={800} sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
               <ChatBubbleOutline sx={{ color: '#01A3DA' }} /> COMMUNICATION HUB
             </Typography>
-            <Chip label={`${comments.length} Messages`} sx={{ bgcolor: alpha('#FFF', 0.1), color: '#FFF', fontWeight: 700 }} />
+            <Stack direction="row" spacing={1} alignItems="center">
+              <Chip label={`${comments.length} Messages`} sx={{ bgcolor: alpha('#FFF', 0.1), color: '#FFF', fontWeight: 700 }} />
+              <ResourceAlertBadges unreadFeedback={unreadForShipment.feedback} />
+            </Stack>
           </Stack>
           
           <Grid container spacing={4}>

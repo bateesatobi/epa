@@ -1,7 +1,7 @@
 import axios from 'axios'
 // Forced reload: 2026-03-19T02:20:00Z
 
-const API_BASE_URL =
+export const API_BASE_URL =
   import.meta.env.VITE_API_URL || 'https://epa-backend-latest.onrender.com'
   // import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
@@ -459,7 +459,7 @@ export const notificationsAPI = {
     const response = await api.get('/api/notifications', { params })
     return response.data
   },
-  getUnread: async (limit = 10) => {
+  getUnread: async (limit = 50) => {
     const response = await api.get('/api/notifications/unread', { params: { limit } })
     return response.data
   },

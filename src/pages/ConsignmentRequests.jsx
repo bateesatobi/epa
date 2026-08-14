@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -32,6 +32,9 @@ import ConsignmentRequestDetailDialog from '../components/consignment/Consignmen
 import DataTable from '../components/DataTable'
 import FormSelect from '../components/FormSelect'
 import { PageSkeleton } from '../components/LoadingStates'
+import ResourceAlertBadges from '../components/ResourceAlertBadges'
+import { useUnreadNotifications } from '../hooks/useNotifications'
+import { indexResourceAlerts } from '../utils/notificationNavigation'
 import { toast } from 'react-toastify'
 
 const STATUS_COLORS = {
@@ -59,6 +62,7 @@ const TAB_GROUPS = [
 
 export default function ConsignmentRequests() {
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const [tab, setTab] = useState(0)
   const [selected, setSelected] = useState(null)
@@ -76,6 +80,12 @@ export default function ConsignmentRequests() {
     queryKey: ['consignment-requests'],
     queryFn: () => consignmentRequestsAPI.list(),
   })
+
+  const { data: unreadNotifications = [] } = useUnreadNotifications()
+  const resourceAlerts = useMemo(
+    () => indexResourceAlerts(unreadNotifications),
+    [unreadNotifications]
+  )
 
   const { data: depots = [], isLoading: depotsLoading } = useQuery({
     queryKey: ['depotsActive'],
@@ -156,6 +166,14 @@ export default function ConsignmentRequests() {
     }
   }
 
+  useEffect(() => {
+    const requestId = location.state?.requestId
+    if (!requestId) return
+    openDetail({ id: requestId })
+    navigate(location.pathname, { replace: true, state: {} })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.requestId])
+
   const viewDoc = async (doc) => {
     if (!selected?.id) return
     try {
@@ -185,11 +203,21 @@ export default function ConsignmentRequests() {
         label: 'Request #',
         minWidth: 140,
         accessor: (row) => row.request_number,
-        render: (row) => (
-          <Typography variant="body2" fontWeight={700} color="text.primary">
-            {row.request_number}
-          </Typography>
-        ),
+        render: (row) => {
+          const unread = resourceAlerts[row.id] || {}
+          return (
+            <Stack spacing={0.5}>
+              <Typography variant="body2" fontWeight={700} color="text.primary">
+                {row.request_number}
+              </Typography>
+              <ResourceAlertBadges
+                queries={row.open_query_count}
+                unreadQueries={unread.queries}
+                onQueryClick={() => openDetail(row)}
+              />
+            </Stack>
+          )
+        },
       },
       {
         field: 'client',
@@ -277,7 +305,7 @@ export default function ConsignmentRequests() {
         ),
       },
     ],
-    []
+    [resourceAlerts]
   )
 
   const detailFooter = selected ? (
@@ -543,7 +571,10 @@ export default function ConsignmentRequests() {
                 label="Departure depot (origin)"
                 value={promoteOrigin}
                 onChange={(e) => setPromoteOrigin(e.target.value)}
-                options={depots.map((d) => ({ value: d.name, label: d.name }))}
+                options={depots.map((d) => ({
+                  value: d.name,
+                  label: d.category ? `${d.name} (${d.category})` : d.name,
+                }))}
                 required
                 margin="none"
               />
@@ -551,7 +582,10 @@ export default function ConsignmentRequests() {
                 label="Arrival depot (destination)"
                 value={promoteDestination}
                 onChange={(e) => setPromoteDestination(e.target.value)}
-                options={depots.map((d) => ({ value: d.name, label: d.name }))}
+                options={depots.map((d) => ({
+                  value: d.name,
+                  label: d.category ? `${d.name} (${d.category})` : d.name,
+                }))}
                 required
                 margin="none"
               />
