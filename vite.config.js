@@ -6,6 +6,9 @@ export default defineConfig({
   server: {
     port: 3000,
   },
+  optimizeDeps: {
+    include: ['jspdf', 'jspdf-autotable', 'jszip'],
+  },
   build: {
     outDir: 'dist',
     chunkSizeWarningLimit: 1200,

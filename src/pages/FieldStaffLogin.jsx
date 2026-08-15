@@ -1,25 +1,24 @@
 import React, { useState } from 'react'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import {
-  Container,
   Box,
   Button,
+  Container,
   Typography,
   Alert,
   Paper,
   CircularProgress,
   LinearProgress,
   Stack,
+  Chip,
   Divider,
   IconButton,
 } from '@mui/material'
-import { alpha } from '@mui/material/styles'
 import {
-  Login as LoginIcon,
   Security,
   LocalShipping,
-  VerifiedUser,
-  Dashboard as DashboardIcon,
+  Assignment,
+  Sync,
   ArrowBack,
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
@@ -27,45 +26,50 @@ import { showSuccessAlert, showErrorAlert, showLoadingAlert, closeAlert } from '
 import FormTextField from '../components/FormTextField'
 import EPALogo from '../components/EPALogo'
 
-const Login = () => {
+/**
+ * Field Staff Portal login — mirrors mobile Staff Portal.
+ * Uses POST /api/auth/field-staff/login (email and/or staff ID).
+ */
+export default function FieldStaffLogin() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const { login } = useAuth()
+  const { loginFieldStaff } = useAuth()
   const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
-    
-    if (!email || !password) {
-      showErrorAlert('Validation Error', 'Please enter both email and password')
+
+    const trimmedEmail = email.trim()
+
+    if (!trimmedEmail || !password) {
+      showErrorAlert('Validation Error', 'Enter your work email and password')
       return
     }
-    
+
     setLoading(true)
-    const loadingAlert = showLoadingAlert('Authenticating...', 'Accessing secure terminal')
+    const loadingAlert = showLoadingAlert('Signing in…', 'Opening Field Staff portal')
 
     try {
-      const result = await login(email, password)
+      const result = await loginFieldStaff({
+        email: trimmedEmail,
+        password,
+      })
       if (result.success) {
         closeAlert()
-        await showSuccessAlert('Welcome!', 'Login successful')
-        if (result.isFieldStaff && !result.isAdmin && !result.isReportingOfficer) {
-          navigate('/dashboard/field-staff')
-        } else {
-          navigate('/dashboard')
-        }
+        await showSuccessAlert('Welcome!', 'Field Staff portal ready')
+        navigate('/dashboard/field-staff')
       } else {
         closeAlert()
         setError(result.error || 'Login failed')
-        showErrorAlert('Access Denied', result.error || 'Invalid credentials provided')
+        showErrorAlert('Access Denied', result.error || 'Invalid staff credentials')
       }
-    } catch (err) {
+    } catch {
       closeAlert()
       setError('An error occurred. Please try again.')
-      showErrorAlert('System Error', 'Unable to establish secure connection.')
+      showErrorAlert('System Error', 'Unable to reach the Field Staff login service.')
     } finally {
       setLoading(false)
     }
@@ -76,9 +80,9 @@ const Login = () => {
       sx={{
         minHeight: '100vh',
         display: 'flex',
+        bgcolor: '#0A192F',
         position: 'relative',
         overflow: 'hidden',
-        bgcolor: '#0A192F',
       }}
     >
       <Box
@@ -98,7 +102,7 @@ const Login = () => {
             width: '100%',
             height: '100%',
             objectFit: 'cover',
-            objectPosition: 'center center',
+            objectPosition: '70% center',
             display: 'block',
           }}
         />
@@ -110,8 +114,8 @@ const Login = () => {
           inset: 0,
           zIndex: 0,
           background: `
-            linear-gradient(115deg, rgba(8, 18, 28, 0.88) 0%, rgba(8, 18, 28, 0.72) 48%, rgba(8, 18, 28, 0.55) 100%),
-            linear-gradient(180deg, rgba(8, 18, 28, 0.35) 0%, transparent 40%, rgba(8, 18, 28, 0.5) 100%)
+            linear-gradient(115deg, rgba(10, 25, 47, 0.9) 0%, rgba(10, 25, 47, 0.75) 50%, rgba(10, 25, 47, 0.6) 100%),
+            linear-gradient(180deg, rgba(10, 25, 47, 0.4) 0%, transparent 35%, rgba(10, 25, 47, 0.55) 100%)
           `,
         }}
       />
@@ -126,14 +130,13 @@ const Login = () => {
           left: { xs: 12, md: 24 },
           zIndex: 2,
           color: '#fff',
-          bgcolor: 'rgba(255,255,255,0.1)',
-          '&:hover': { bgcolor: 'rgba(1,163,218,0.3)' },
+          bgcolor: 'rgba(255,255,255,0.08)',
+          '&:hover': { bgcolor: 'rgba(1,163,218,0.25)' },
         }}
       >
         <ArrowBack />
       </IconButton>
 
-      {/* Main Content Container */}
       <Container maxWidth="lg" sx={{ position: 'relative', zIndex: 1, display: 'flex', alignItems: 'center' }}>
         <Stack
           direction={{ xs: 'column', md: 'row' }}
@@ -141,44 +144,53 @@ const Login = () => {
           alignItems="center"
           sx={{ width: '100%', py: 8 }}
         >
-          {/* Left Side: Brand & Mission */}
           <Box sx={{ flex: 1, textAlign: { xs: 'center', md: 'left' }, color: '#fff' }}>
-            <Box sx={{ mb: 4, display: 'inline-block' }}>
-              <EPALogo variant="white" width={180} height={60} />
+            <Box sx={{ mb: 3, display: 'inline-block' }}>
+              <EPALogo variant="white" width={160} height={52} />
             </Box>
+            <Chip
+              label="Staff Portal"
+              sx={{
+                mb: 2,
+                fontWeight: 800,
+                bgcolor: 'rgba(1,163,218,0.2)',
+                color: '#fff',
+                border: '1px solid rgba(255,255,255,0.15)',
+              }}
+            />
             <Typography
               variant="h2"
               fontWeight={800}
               sx={{
-                color: '#fff',
                 mb: 2,
                 letterSpacing: '-1px',
                 lineHeight: 1.1,
+                fontSize: { xs: '2rem', md: '2.75rem' },
               }}
             >
-              Enterprise <br />
+              Field Staff
+              <br />
               <Typography component="span" variant="inherit" sx={{ color: '#01A3DA' }}>
-                Operational Cockpit
+                Portal
               </Typography>
             </Typography>
-            <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.78)', fontWeight: 400, mb: 4, maxWidth: 500 }}>
-              The definitive command center for freight logistics and compliance governance.
+            <Typography variant="h6" sx={{ color: 'rgba(255,255,255,0.78)', fontWeight: 400, mb: 4, maxWidth: 480 }}>
+              Assignments, clearance tasks & field operations — same portal as the mobile Staff app.
             </Typography>
 
-            {/* Value Indicators */}
             <Stack spacing={2} sx={{ display: { xs: 'none', md: 'flex' } }}>
               {[
-                { icon: <DashboardIcon sx={{ color: '#01A3DA' }} />, text: 'Real-time operational intelligence' },
-                { icon: <LocalShipping sx={{ color: '#01A3DA' }} />, text: 'Seamless consignment tracking' },
-                { icon: <VerifiedUser sx={{ color: '#01A3DA' }} />, text: 'Rigorous compliance governance' },
-              ].map((item, index) => (
-                <Stack key={index} direction="row" spacing={2} alignItems="center">
+                { icon: <Assignment sx={{ color: '#01A3DA' }} />, text: 'Your clearance assignments' },
+                { icon: <Sync sx={{ color: '#01A3DA' }} />, text: 'Update activity status in the field' },
+                { icon: <LocalShipping sx={{ color: '#01A3DA' }} />, text: 'Consignments & incoming requests' },
+              ].map((item) => (
+                <Stack key={item.text} direction="row" spacing={2} alignItems="center">
                   <Box
                     sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 1,
-                      bgcolor: 'rgba(1, 163, 218, 0.18)',
+                      width: 36,
+                      height: 36,
+                      borderRadius: 1.5,
+                      bgcolor: 'rgba(1,163,218,0.15)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -194,41 +206,45 @@ const Login = () => {
             </Stack>
           </Box>
 
-          {/* Right Side: Login Terminal */}
-          <Box sx={{ flex: 0.8, width: '100%', maxWidth: 450 }}>
+          <Box sx={{ flex: 0.85, width: '100%', maxWidth: 440 }}>
             <Paper
               elevation={0}
               sx={{
-                p: { xs: 4, md: 6 },
+                p: { xs: 3.5, md: 5 },
                 borderRadius: 4,
                 bgcolor: '#FFFFFF',
-                border: '1px solid',
-                borderColor: '#E9ECEF',
                 boxShadow: '0 24px 48px rgba(0,0,0,0.25)',
               }}
             >
-              <Box sx={{ mb: 4 }}>
-                <Typography variant="h5" fontWeight={700} color="#000" gutterBottom>
-                  Admin Access
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h5" fontWeight={800} color="#0A192F" gutterBottom>
+                  Field staff sign in
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Please authenticate to enter the cockpit.
+                  Use your EPA work email and password — same as the mobile Staff Portal.
                 </Typography>
               </Box>
 
               {error && (
-                <Alert severity="error" sx={{ mb: 3, borderRadius: 2, bgcolor: '#FFF5F5' }}>
+                <Alert severity="error" sx={{ mb: 2.5, borderRadius: 2 }}>
                   {error}
                 </Alert>
               )}
 
               {loading && (
-                <LinearProgress sx={{ mb: 3, borderRadius: 1, bgcolor: '#E9ECEF', '& .MuiLinearProgress-bar': { bgcolor: '#01A3DA' } }} />
+                <LinearProgress
+                  sx={{
+                    mb: 2.5,
+                    borderRadius: 1,
+                    bgcolor: '#E9ECEF',
+                    '& .MuiLinearProgress-bar': { bgcolor: '#01A3DA' },
+                  }}
+                />
               )}
 
               <form onSubmit={handleSubmit}>
                 <FormTextField
-                  label="Network ID (Email)"
+                  label="Work email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
@@ -236,7 +252,8 @@ const Login = () => {
                   autoComplete="email"
                   autoFocus
                   disabled={loading}
-                  sx={{ mb: 3 }}
+                  sx={{ mb: 2 }}
+                  placeholder="you@epacarriers.agency"
                 />
                 <FormTextField
                   label="Password"
@@ -246,7 +263,7 @@ const Login = () => {
                   required
                   autoComplete="current-password"
                   disabled={loading}
-                  sx={{ mb: 4 }}
+                  sx={{ mb: 3 }}
                 />
                 <Button
                   type="submit"
@@ -255,61 +272,51 @@ const Login = () => {
                   size="large"
                   disabled={loading}
                   sx={{
-                    py: 1.8,
+                    py: 1.7,
                     borderRadius: 2,
-                    bgcolor: '#000000',
-                    color: '#FFFFFF',
-                    fontWeight: 700,
+                    bgcolor: '#01A3DA',
+                    fontWeight: 800,
                     textTransform: 'none',
                     fontSize: '1rem',
-                    transition: 'all 0.2s',
-                    '&:hover': {
-                      bgcolor: '#333333',
-                      transform: 'translateY(-1px)',
-                    },
-                    '&:active': {
-                      transform: 'translateY(0)',
-                    },
+                    '&:hover': { bgcolor: '#0178A3' },
                   }}
                 >
-                  {loading ? (
-                    <CircularProgress size={24} color="inherit" />
-                  ) : (
-                    'Enter Dashboard'
-                  )}
+                  {loading ? <CircularProgress size={24} color="inherit" /> : 'Enter Field Staff portal'}
                 </Button>
               </form>
 
-              <Box sx={{ mt: 4, textAlign: 'center' }}>
-                <Stack direction="row" spacing={1} alignItems="center" justifyContent="center">
+              <Divider sx={{ my: 3 }} />
+
+              <Stack spacing={1.5} alignItems="center">
+                <Stack direction="row" spacing={1} alignItems="center">
                   <Security sx={{ fontSize: 16, color: '#01A3DA' }} />
-                  <Typography variant="caption" color="text.secondary" fontWeight={500}>
-                    Secure 256-bit encrypted session
+                  <Typography variant="caption" color="text.secondary" fontWeight={600}>
+                    Field-staff endpoint · secure session
                   </Typography>
                 </Stack>
                 <Button
                   component={RouterLink}
-                  to="/staff-login"
+                  to="/login"
                   size="small"
-                  sx={{ mt: 2, fontWeight: 700, textTransform: 'none' }}
+                  sx={{ fontWeight: 700, textTransform: 'none' }}
                 >
-                  Field staff? Open Staff Portal →
+                  Admin / officer sign in →
                 </Button>
-              </Box>
+                <Button
+                  component={RouterLink}
+                  to="/"
+                  startIcon={<ArrowBack />}
+                  size="small"
+                  color="inherit"
+                  sx={{ fontWeight: 600, textTransform: 'none', color: 'text.secondary' }}
+                >
+                  Back to landing
+                </Button>
+              </Stack>
             </Paper>
-            
-            <Typography variant="caption" sx={{ mt: 3, display: 'block', textAlign: 'center', color: 'rgba(255,255,255,0.65)' }}>
-              &copy; {new Date().getFullYear()} EPA Logistics. All rights reserved.
-            </Typography>
           </Box>
         </Stack>
       </Container>
     </Box>
   )
 }
-
-export default Login
-
-
-
-

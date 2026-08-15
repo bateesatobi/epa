@@ -274,6 +274,15 @@ const ComplianceDetail = () => {
       return
     }
 
+    const missingOtherTitles = otherDocuments.filter((doc) => !String(doc.title || '').trim())
+    if (missingOtherTitles.length > 0) {
+      showErrorAlert(
+        'Title required',
+        'Please enter a title for each Other document before uploading.'
+      )
+      return
+    }
+
     const allDocuments = [
       ...Object.entries(documentFiles).map(([documentType, { file, title }]) => ({
         documentType,
@@ -284,7 +293,7 @@ const ComplianceDetail = () => {
       ...otherDocuments.map(({ id, file, title, document_type }) => ({
         documentType: document_type,
         file,
-        title: title || file.name,
+        title: String(title).trim(),
         id: `other-${id}`, // Use the document's unique ID for other documents
       })),
     ]
@@ -298,8 +307,8 @@ const ComplianceDetail = () => {
     
     // Initialize progress for all documents
     const initialProgress = {}
-    allDocuments.forEach(({ documentType }) => {
-      initialProgress[documentType] = { status: 'uploading', progress: 0 }
+    allDocuments.forEach(({ id }) => {
+      initialProgress[id] = { status: 'uploading', progress: 0 }
     })
     setUploadProgress(initialProgress)
 
@@ -723,10 +732,14 @@ const ComplianceDetail = () => {
                               </Box>
                               <Box>
                                 <Typography variant="body2" fontWeight={600}>
-                                  {doc.document_type?.replace(/_/g, ' ').toUpperCase()}
+                                  {doc.document_type === 'other'
+                                    ? (doc.title || 'Other document')
+                                    : doc.document_type?.replace(/_/g, ' ').toUpperCase()}
                                 </Typography>
                                 <Typography variant="caption" color="text.secondary">
-                                  {doc.file_name || 'View details'}
+                                  {doc.document_type === 'other'
+                                    ? `OTHER · ${doc.file_name || 'View details'}`
+                                    : (doc.title || doc.file_name || 'View details')}
                                 </Typography>
                               </Box>
                             </Stack>
@@ -1196,6 +1209,13 @@ const ComplianceDetail = () => {
                             onChange={(e) => handleOtherTitleChange(doc.id, e.target.value)}
                             fullWidth
                             size="small"
+                            required
+                            error={!String(doc.title || '').trim()}
+                            helperText={
+                              !String(doc.title || '').trim()
+                                ? 'Title is required for Other documents'
+                                : 'Give this file a clear name staff and clients will recognize'
+                            }
                             disabled={submitting || isSuccess}
                             placeholder="Enter a title for this document"
                           />
@@ -1268,7 +1288,11 @@ const ComplianceDetail = () => {
           <Button
             variant="contained"
             onClick={handleUploadDocument}
-            disabled={submitting || (Object.keys(documentFiles).length === 0 && otherDocuments.length === 0)}
+            disabled={
+              submitting ||
+              (Object.keys(documentFiles).length === 0 && otherDocuments.length === 0) ||
+              otherDocuments.some((doc) => !String(doc.title || '').trim())
+            }
             startIcon={submitting ? <CircularProgress size={16} color="inherit" /> : <CloudUpload />}
             sx={{
               minWidth: 150,

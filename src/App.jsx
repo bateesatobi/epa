@@ -13,6 +13,7 @@ import LandingPage from './pages/landing/LandingPage'
 
 // Staff portal
 import Login from './pages/Login'
+import FieldStaffLogin from './pages/FieldStaffLogin'
 import Dashboard from './pages/Dashboard'
 import Layout from './components/Layout'
 import Users from './pages/Users'
@@ -29,6 +30,13 @@ import Depots from './pages/Depots'
 import ClearanceActivities from './pages/ClearanceActivities'
 import ConsignmentRequests from './pages/ConsignmentRequests'
 import NotFound from './pages/NotFound'
+import FieldStaffHome from './pages/fieldstaff/FieldStaffHome'
+import FieldStaffAssignments from './pages/fieldstaff/FieldStaffAssignments'
+import FieldStaffConsignments from './pages/fieldstaff/FieldStaffConsignments'
+import FieldStaffIncoming from './pages/fieldstaff/FieldStaffIncoming'
+import FieldStaffUpdateStatus from './pages/fieldstaff/FieldStaffUpdateStatus'
+import FieldStaffProfile from './pages/fieldstaff/FieldStaffProfile'
+import FieldStaffAssignmentWorkspace from './pages/fieldstaff/FieldStaffAssignmentWorkspace'
 
 let ReactQueryDevtools = null
 if (process.env.NODE_ENV === 'development') {
@@ -65,6 +73,8 @@ function AppRoutes() {
 
       {/* Staff auth */}
       <Route path="/login" element={<Login />} />
+      <Route path="/staff-login" element={<FieldStaffLogin />} />
+      <Route path="/field-staff-login" element={<Navigate to="/staff-login" replace />} />
 
       {/* Staff portal (protected) */}
       <Route
@@ -89,6 +99,16 @@ function AppRoutes() {
         <Route path="depots" element={<Depots />} />
         <Route path="clearance-activities" element={<ClearanceActivities />} />
         <Route path="consignment-requests" element={<ConsignmentRequests />} />
+        <Route path="field-staff" element={<FieldStaffHome />} />
+        <Route path="field-staff/assignments" element={<FieldStaffAssignments />} />
+        <Route path="field-staff/consignments" element={<FieldStaffConsignments />} />
+        <Route
+          path="field-staff/consignments/:shipmentId"
+          element={<FieldStaffAssignmentWorkspace />}
+        />
+        <Route path="field-staff/incoming" element={<FieldStaffIncoming />} />
+        <Route path="field-staff/update-status" element={<FieldStaffUpdateStatus />} />
+        <Route path="field-staff/profile" element={<FieldStaffProfile />} />
         <Route path="*" element={<NotFound />} />
       </Route>
 

@@ -34,8 +34,13 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      localStorage.removeItem('token')
-      window.location.href = '/login'
+      const path = window.location.pathname || ''
+      // Don't bounce away from the login screens themselves
+      if (!path.startsWith('/login') && !path.startsWith('/staff-login')) {
+        localStorage.removeItem('token')
+        const portal = localStorage.getItem('loginPortal')
+        window.location.href = portal === 'field_staff' ? '/staff-login' : '/login'
+      }
     }
     return Promise.reject(error)
   }
@@ -45,6 +50,17 @@ api.interceptors.response.use(
 export const authAPI = {
   login: async (email, password) => {
     const response = await api.post('/api/auth/login-json', { email, password })
+    return response.data
+  },
+  fieldStaffLogin: async ({ email, userId, password }) => {
+    const payload = { password }
+    if (userId != null && userId !== '') {
+      payload.user_id = Number(userId)
+    }
+    if (email) {
+      payload.email = email
+    }
+    const response = await api.post('/api/auth/field-staff/login', payload)
     return response.data
   },
   getCurrentUser: async (token) => {
@@ -220,6 +236,12 @@ export const shipmentsAPI = {
     const response = await api.post(`/api/shipments/${id}/cancel?reason=${encodeURIComponent(reason || '')}`)
     return response.data
   },
+  closeMission: async (id, reason) => {
+    const response = await api.post(
+      `/api/shipments/${id}/close-mission?reason=${encodeURIComponent(reason || '')}`
+    )
+    return response.data
+  },
   assign: async (id, data) => {
     const response = await api.post(`/api/shipments/${id}/assign`, data)
     return response.data
@@ -232,6 +254,12 @@ export const shipmentsAPI = {
   listClearanceActivityAssignments: async (shipmentId) => {
     const response = await api.get(`/api/shipments/${shipmentId}/clearance-activity-assignments`)
     return response.data
+  },
+  getMyAssignments: async (params = {}) => {
+    const response = await api.get('/api/shipments/clearance-activity-assignments/my-assignments', {
+      params,
+    })
+    return Array.isArray(response.data) ? response.data : []
   },
   updateClearanceActivityAssignment: async (assignmentId, data) => {
     const response = await api.put(`/api/shipments/clearance-activity-assignments/${assignmentId}`, data)
@@ -299,8 +327,24 @@ export const complianceAPI = {
   },
   // View document
   viewDocument: async (documentId) => {
-    const response = await api.get(`/api/compliance/documents/${documentId}/view`)
+    const response = await api.get(`/api/compliance/documents/${documentId}/view`, {
+      timeout: 120000,
+    })
     return response.data
+  },
+  // Binary download (preferred for packaging / large files)
+  downloadDocumentFile: async (documentId) => {
+    const response = await api.get(`/api/compliance/documents/${documentId}/file`, {
+      timeout: 120000,
+      responseType: 'arraybuffer',
+    })
+    const disposition = response.headers?.['content-disposition'] || ''
+    const match = disposition.match(/filename="?([^";]+)"?/i)
+    return {
+      bytes: new Uint8Array(response.data),
+      fileName: match?.[1] || null,
+      mimeType: response.headers?.['content-type'] || 'application/octet-stream',
+    }
   },
   // Upload document for client
   uploadDocumentForClient: async (clientId, documentData, shipmentId = null) => {
@@ -720,6 +764,10 @@ export const consignmentRequestsAPI = {
     const response = await api.get(`/api/consignment-requests/${id}`)
     return response.data
   },
+  getByShipment: async (shipmentId) => {
+    const response = await api.get(`/api/consignment-requests/by-shipment/${shipmentId}`)
+    return response.data
+  },
   review: async (id, data) => {
     const response = await api.patch(`/api/consignment-requests/${id}/review`, data)
     return response.data
@@ -752,8 +800,23 @@ export const consignmentRequestsAPI = {
     await api.delete(`/api/consignment-requests/${requestId}/documents/${docId}`)
   },
   viewDocument: async (requestId, docId) => {
-    const response = await api.get(`/api/consignment-requests/${requestId}/documents/${docId}/view`)
+    const response = await api.get(`/api/consignment-requests/${requestId}/documents/${docId}/view`, {
+      timeout: 120000,
+    })
     return response.data
+  },
+  downloadDocumentFile: async (requestId, docId) => {
+    const response = await api.get(`/api/consignment-requests/${requestId}/documents/${docId}/file`, {
+      timeout: 120000,
+      responseType: 'arraybuffer',
+    })
+    const disposition = response.headers?.['content-disposition'] || ''
+    const match = disposition.match(/filename="?([^";]+)"?/i)
+    return {
+      bytes: new Uint8Array(response.data),
+      fileName: match?.[1] || null,
+      mimeType: response.headers?.['content-type'] || 'application/octet-stream',
+    }
   },
   delete: async (id) => {
     await api.delete(`/api/consignment-requests/${id}`)

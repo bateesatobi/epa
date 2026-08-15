@@ -46,6 +46,8 @@ import {
   ChatBubbleOutline as ChatIcon,
   SupportAgent as SupportIcon,
   Assignment,
+  Home as HomeIcon,
+  Inbox as InboxIcon,
 } from '@mui/icons-material'
 import HubIcon from '@mui/icons-material/Hub'
 import SecurityOutlinedIcon from '@mui/icons-material/SecurityOutlined'
@@ -53,9 +55,11 @@ import WidgetsIcon from '@mui/icons-material/Widgets'
 import TimelineIcon from '@mui/icons-material/Timeline'
 import BarChartIcon from '@mui/icons-material/BarChart'
 import { useAuth } from '../contexts/AuthContext'
-import { notificationsAPI } from '../services/api'
+import { notificationsAPI, consignmentRequestsAPI, shipmentsAPI } from '../services/api'
 import { useAdminNotifications } from '../hooks/useNotifications'
 import { navigateFromAdminNotification, getSidebarAlertCounts, formatAlertCount } from '../utils/notificationNavigation'
+import { useQuery } from '@tanstack/react-query'
+import { fieldStaffKeys } from '../hooks/useFieldStaff'
 import { formatDistanceToNow } from 'date-fns'
 import EPALogo from './EPALogo'
 
@@ -72,13 +76,13 @@ const navigationSections = [
         text: 'Cockpit', 
         icon: <DashboardIcon />, 
         path: '/dashboard',
-        roles: ['admin', 'field-staff', 'reporting-officer']
+        roles: ['admin', 'reporting-officer']
       },
       {
         text: 'Consignments', 
         icon: <ShipmentsIcon />, 
         path: '/dashboard/shipments',
-        roles: ['admin', 'field-staff', 'reporting-officer'],
+        roles: ['admin', 'reporting-officer'],
         badgeKey: 'consignments',
         extraBadges: [
           { key: 'consignmentQueries', tone: 'query', label: 'queries' },
@@ -106,7 +110,7 @@ const navigationSections = [
         text: 'Checklist', 
         icon: <ComplianceIcon />, 
         path: '/dashboard/compliance',
-        roles: ['admin', 'field-staff', 'reporting-officer']
+        roles: ['admin', 'reporting-officer']
       },
       { 
         text: 'Reports', 
@@ -131,14 +135,14 @@ const navigationSections = [
         text: 'Feedback & Support',
         icon: <ChatIcon />,
         path: '/dashboard/feedback',
-        roles: ['admin', 'field-staff', 'reporting-officer'],
+        roles: ['admin', 'reporting-officer'],
         badgeKey: 'feedback',
       },
       {
         text: 'Notifications',
         icon: <Notifications />,
         path: '/dashboard/notifications',
-        roles: ['admin', 'field-staff', 'reporting-officer'],
+        roles: ['admin', 'reporting-officer'],
         badgeKey: 'notifications',
       },
     ],
@@ -164,15 +168,97 @@ const navigationSections = [
         text: 'Clearance Activities',
         icon: <TimelineIcon />,
         path: '/dashboard/clearance-activities',
-        roles: ['admin', 'field-staff', 'reporting-officer']
+        roles: ['admin', 'reporting-officer']
+      },
+    ],
+  },
+  {
+    title: 'Field Staff Panel',
+    caption: 'Mobile-parity field workspace',
+    icon: <HomeIcon fontSize="small" />,
+    items: [
+      {
+        text: 'Field Staff Home',
+        icon: <HomeIcon />,
+        path: '/dashboard/field-staff',
+        roles: ['admin'],
+        exact: true,
+      },
+      {
+        text: 'My Assignments',
+        icon: <Assignment />,
+        path: '/dashboard/field-staff/assignments',
+        roles: ['admin'],
       },
     ],
   },
 ]
 
-const isPathActive = (currentPath, targetPath) => {
+/** Field staff sidebar — mirrors the mobile Field Staff app tabs & shortcuts. */
+const fieldStaffNavigationSections = [
+  {
+    title: 'Field Work',
+    caption: 'Your daily operations',
+    icon: <HomeIcon fontSize="small" />,
+    items: [
+      {
+        text: 'Home',
+        icon: <HomeIcon />,
+        path: '/dashboard/field-staff',
+        roles: ['field-staff', 'admin'],
+        exact: true,
+      },
+      {
+        text: 'Assignments',
+        icon: <Assignment />,
+        path: '/dashboard/field-staff/assignments',
+        roles: ['field-staff', 'admin'],
+        badgeKey: 'assignments',
+      },
+      {
+        text: 'Consignments',
+        icon: <ShipmentsIcon />,
+        path: '/dashboard/field-staff/consignments',
+        roles: ['field-staff', 'admin'],
+        badgeKey: 'consignments',
+      },
+      {
+        text: 'Requests',
+        icon: <InboxIcon />,
+        path: '/dashboard/field-staff/incoming',
+        roles: ['field-staff', 'admin'],
+        badgeKey: 'incoming',
+      },
+    ],
+  },
+  {
+    title: 'Account',
+    caption: 'Alerts & profile',
+    icon: <Person fontSize="small" />,
+    items: [
+      {
+        text: 'Notifications',
+        icon: <Notifications />,
+        path: '/dashboard/notifications',
+        roles: ['field-staff', 'admin'],
+        badgeKey: 'notifications',
+      },
+      {
+        text: 'Profile',
+        icon: <Person />,
+        path: '/dashboard/field-staff/profile',
+        roles: ['field-staff', 'admin'],
+      },
+    ],
+  },
+]
+
+const isPathActive = (currentPath, targetPath, exact = false) => {
   if (targetPath === '/') {
     return currentPath === '/'
+  }
+  if (exact) {
+    return currentPath === targetPath
   }
   return currentPath === targetPath || currentPath.startsWith(`${targetPath}/`)
 }
@@ -193,7 +279,7 @@ const Layout = () => {
   const [anchorEl, setAnchorEl] = useState(null)
   const navigate = useNavigate()
   const location = useLocation()
-  const { user, logout } = useAuth()
+  const { user, logout, isFieldStaff, isAdmin, isReportingOfficer } = useAuth()
   const [notificationsAnchorEl, setNotificationsAnchorEl] = useState(null)
   const {
     unreadCount,
@@ -202,10 +288,54 @@ const Layout = () => {
     refetchUnread,
     invalidate: invalidateNotifications,
   } = useAdminNotifications()
-  const sidebarAlerts = useMemo(
-    () => getSidebarAlertCounts(unreadNotifications, unreadCount),
-    [unreadNotifications, unreadCount]
+
+  const useFieldStaffNav = isFieldStaff && !isAdmin && !isReportingOfficer
+
+  const { data: myAssignments = [] } = useQuery({
+    queryKey: fieldStaffKeys.assignments(),
+    queryFn: () => shipmentsAPI.getMyAssignments(),
+    enabled: useFieldStaffNav || isAdmin,
+    staleTime: 30_000,
+  })
+  const { data: incomingRequests = [] } = useQuery({
+    queryKey: fieldStaffKeys.incoming(),
+    queryFn: async () => {
+      const data = await consignmentRequestsAPI.incoming()
+      return Array.isArray(data) ? data : []
+    },
+    enabled: useFieldStaffNav || isAdmin,
+    staleTime: 30_000,
+  })
+
+  const activeAssignmentCount = useMemo(
+    () => myAssignments.filter((a) => String(a.status || '').toLowerCase() !== 'completed').length,
+    [myAssignments]
   )
+  const myConsignmentCount = useMemo(() => {
+    const ids = new Set()
+    for (const a of myAssignments) {
+      const id = a.shipment_id || a.id
+      if (id) ids.add(id)
+    }
+    return ids.size
+  }, [myAssignments])
+
+  const sidebarAlerts = useMemo(() => {
+    const base = getSidebarAlertCounts(unreadNotifications, unreadCount)
+    return {
+      ...base,
+      assignments: activeAssignmentCount,
+      consignments: useFieldStaffNav ? myConsignmentCount : base.consignments,
+      incoming: incomingRequests.length,
+    }
+  }, [
+    unreadNotifications,
+    unreadCount,
+    activeAssignmentCount,
+    myConsignmentCount,
+    incomingRequests,
+    useFieldStaffNav,
+  ])
 
   const drawerWidth = sidebarExpanded ? drawerWidthExpanded : drawerWidthCollapsed
 
@@ -216,18 +346,23 @@ const Layout = () => {
   }
 
   const filteredSections = useMemo(() => {
-    return navigationSections.map(section => ({
-      ...section,
-      items: section.items.filter(item => checkRoleAccess(item.roles, user?.roles))
-    })).filter(section => section.items.length > 0)
-  }, [user])
+    const source = useFieldStaffNav ? fieldStaffNavigationSections : navigationSections
+    return source
+      .map((section) => ({
+        ...section,
+        items: section.items.filter((item) => checkRoleAccess(item.roles, user?.roles)),
+      }))
+      .filter((section) => section.items.length > 0)
+  }, [user, useFieldStaffNav])
 
   const flattenedMenu = useMemo(() => {
-    return filteredSections.flatMap(section => section.items)
+    return filteredSections.flatMap((section) => section.items)
   }, [filteredSections])
 
   const activeItem = useMemo(
-    () => flattenedMenu.find((item) => isPathActive(location.pathname, item.path)) ?? flattenedMenu[0],
+    () =>
+      flattenedMenu.find((item) => isPathActive(location.pathname, item.path, item.exact)) ??
+      flattenedMenu[0],
     [location.pathname, flattenedMenu]
   )
   const notificationsMenuOpen = Boolean(notificationsAnchorEl)
@@ -426,7 +561,7 @@ const Layout = () => {
               </ListSubheader>
             )}
             {section.items.map((item) => {
-              const isSelected = isPathActive(location.pathname, item.path)
+              const isSelected = isPathActive(location.pathname, item.path, item.exact)
               const alertCount = item.badgeKey ? (sidebarAlerts[item.badgeKey] || 0) : 0
               const extraBadgeItems = (item.extraBadges || [])
                 .map((badge) => ({

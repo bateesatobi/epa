@@ -51,6 +51,8 @@ import {
   Reply,
   DeleteOutline,
   Send,
+  Download,
+  Lock,
 } from '@mui/icons-material'
 import { format, formatDistanceToNow } from 'date-fns'
 import { shipmentsAPI, complianceAPI, clearanceActivitiesAPI, commentsAPI } from '../services/api'
@@ -65,18 +67,27 @@ import {
   showErrorAlert,
   showLoadingAlert,
   closeAlert,
+  showConfirmDialog,
 } from '../utils/alerts'
 import ShipmentQueries from '../components/ShipmentQueries'
 import ResourceAlertBadges from '../components/ResourceAlertBadges'
 import { useUnreadNotifications } from '../hooks/useNotifications'
 import { indexResourceAlerts } from '../utils/notificationNavigation'
+import { downloadConsignmentReport } from '../utils/consignmentReport'
+import {
+  formatShipmentStatusLabel,
+  isMissionClosed,
+  isMissionTerminal,
+} from '../utils/shipmentStatus'
 
-const STATUS_STEPS = ['pending', 'in_transit', 'at_customs', 'awaiting_release', 'delivered']
+const STATUS_STEPS = ['pending', 'in_transit', 'at_customs', 'awaiting_release', 'delivered', 'closed']
 
 const getStatusColor = (status) => {
   switch (status) {
     case 'delivered':
       return 'success'
+    case 'closed':
+      return 'default'
     case 'in_transit':
       return 'info'
     case 'pending':
@@ -86,6 +97,8 @@ const getStatusColor = (status) => {
     case 'awaiting_release':
     case 'at_customs':
       return 'secondary'
+    case 'on_hold':
+      return 'warning'
     default:
       return 'default'
   }
@@ -121,6 +134,7 @@ const ShipmentDetail = () => {
     notes: '',
   })
   const [submitting, setSubmitting] = useState(false)
+  const [downloadingReport, setDownloadingReport] = useState(false)
   const { data: unreadNotifications = [] } = useUnreadNotifications()
   const unreadForShipment = useMemo(
     () => indexResourceAlerts(unreadNotifications)[Number(shipmentId)] || { queries: 0, feedback: 0 },
@@ -195,6 +209,63 @@ const ShipmentDetail = () => {
     }, 300)
     return () => clearTimeout(timer)
   }, [loading, shipment, searchParams])
+
+  const handleDownloadReport = async () => {
+    if (!shipmentId) return
+    setDownloadingReport(true)
+    const toastId = toast.loading('Preparing consignment package…')
+    try {
+      const { filename, missingCount } = await downloadConsignmentReport({
+        shipmentId,
+        shipment,
+        clearanceHistory,
+        assignments: activityAssignments,
+        generatedBy: user?.full_name || user?.name || user?.email || '',
+        onProgress: (msg) => toast.update(toastId, { render: msg, isLoading: true }),
+      })
+      toast.update(toastId, {
+        render: missingCount
+          ? `Downloaded ${filename} (${missingCount} document(s) missing from server — see _MISSING_DOCUMENTS.txt)`
+          : `Downloaded package ${filename}`,
+        type: missingCount ? 'warning' : 'success',
+        isLoading: false,
+        autoClose: 5000,
+      })
+    } catch (err) {
+      toast.update(toastId, {
+        render: err.response?.data?.detail || err.message || 'Failed to download package',
+        type: 'error',
+        isLoading: false,
+        autoClose: 5000,
+      })
+    } finally {
+      setDownloadingReport(false)
+    }
+  }
+
+  const handleCloseMission = async () => {
+    if (!shipmentId || !shipment) return
+    if (isMissionTerminal(shipment.status)) {
+      showErrorAlert('Unavailable', 'This mission is already closed or cancelled')
+      return
+    }
+    const result = await showConfirmDialog(
+      'Close Mission',
+      'Close this consignment mission? Clients and field staff will see Mission closed, and operational updates will stop.',
+      'Yes, Close Mission'
+    )
+    if (!result.isConfirmed) return
+    showLoadingAlert('Closing mission...')
+    try {
+      await shipmentsAPI.closeMission(shipmentId, 'Closed from shipment cockpit')
+      closeAlert()
+      await showSuccessAlert('Closed', 'Mission has been closed')
+      fetchShipment(false)
+    } catch (error) {
+      closeAlert()
+      showErrorAlert('Failed', error.response?.data?.detail || 'Could not close mission')
+    }
+  }
 
   // Get activities assigned to current user
   const myAssignments = useMemo(() => {
@@ -579,18 +650,39 @@ const ShipmentDetail = () => {
               Shipment Tracking & Governance Cockpit
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1.5}>
+          <Stack direction="row" spacing={1.5} alignItems="center">
             <Chip
-              label={normaliseStatusLabel(shipment.status).toUpperCase()}
+              label={formatShipmentStatusLabel(shipment.status).toUpperCase()}
+              color={getStatusColor(shipment.status)}
               sx={{ 
                 fontWeight: 700, 
                 px: 1,
-                bgcolor: shipment.status === 'delivered' ? '#E3F2FD' : '#F8F9FA',
-                color: shipment.status === 'delivered' ? '#01A3DA' : 'text.secondary',
                 border: '1px solid',
                 borderColor: 'divider'
               }}
             />
+            {isAdmin && !isMissionTerminal(shipment.status) && (
+              <Button
+                variant="contained"
+                color="inherit"
+                startIcon={<Lock />}
+                onClick={handleCloseMission}
+                sx={{ fontWeight: 800, bgcolor: '#0A192F', color: '#fff', '&:hover': { bgcolor: '#152A4A' } }}
+              >
+                Close mission
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              startIcon={
+                downloadingReport ? <CircularProgress size={16} color="inherit" /> : <Download />
+              }
+              onClick={handleDownloadReport}
+              disabled={downloadingReport}
+              sx={{ fontWeight: 700 }}
+            >
+              Download package
+            </Button>
             <Tooltip title="Refresh data">
               <IconButton 
                 onClick={() => fetchShipment(false)} 
@@ -603,6 +695,18 @@ const ShipmentDetail = () => {
           </Stack>
         </Stack>
       </Paper>
+
+      {isMissionClosed(shipment.status) && (
+        <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }} icon={<Lock />}>
+          <AlertTitle sx={{ fontWeight: 800 }}>Mission closed</AlertTitle>
+          This consignment mission is closed
+          {shipment.closed_at
+            ? ` · ${format(new Date(shipment.closed_at), 'MMM dd, yyyy HH:mm')}`
+            : ''}
+          {shipment.closure_reason ? ` — ${shipment.closure_reason}` : ''}.
+          No further operational updates are expected.
+        </Alert>
+      )}
 
       {/* Metrics Row - Reduces sidebar congestion */}
       <Grid container spacing={3} mb={3}>

@@ -16,10 +16,12 @@ import {
   List,
   ListItem,
   ListItemText,
+  Alert,
 } from '@mui/material'
 import { ArrowBack, Upload, Description } from '@mui/icons-material'
 import { clientPortalAPI } from '../../services/clientPortalApi'
 import { showErrorAlert, showSuccessAlert } from '../../utils/alerts'
+import { formatShipmentStatusLabel, isMissionClosed } from '../../utils/shipmentStatus'
 
 const DOC_TYPES = [
   { value: 't1_document', label: 'T1 Document' },
@@ -82,13 +84,20 @@ export default function ClientShipmentDetail() {
       showErrorAlert('Missing fields', 'Select document type and file')
       return
     }
+    if (upload.document_type === 'other' && !String(upload.title || '').trim()) {
+      showErrorAlert('Title required', 'Enter a title for this Other document before uploading')
+      return
+    }
     setUploading(true)
     try {
       const file_data = await fileToBase64(upload.file)
       await clientPortalAPI.uploadDocument(
         {
           document_type: upload.document_type,
-          title: upload.title || upload.file.name,
+          title:
+            upload.document_type === 'other'
+              ? upload.title.trim()
+              : upload.title || upload.file.name,
           file_data,
           file_name: upload.file.name,
           file_size: upload.file.size,
@@ -143,12 +152,22 @@ export default function ClientShipmentDetail() {
           <Typography variant="h4" fontWeight={800}>
             {shipment?.shipment_number}
           </Typography>
-          <Chip label={shipment?.status || 'Pending'} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff' }} />
+          <Chip label={formatShipmentStatusLabel(shipment?.status)} size="small" sx={{ bgcolor: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 700, textTransform: 'capitalize' }} />
         </Stack>
         <Typography sx={{ mt: 1, opacity: 0.9 }}>
           {shipment?.origin} → {shipment?.destination}
         </Typography>
       </Box>
+
+      {isMissionClosed(shipment?.status) && (
+        <Alert severity="info" sx={{ mb: 3, borderRadius: 2 }}>
+          <Typography fontWeight={800}>Mission closed</Typography>
+          <Typography variant="body2">
+            EPA has closed this consignment mission
+            {shipment?.closure_reason ? ` — ${shipment.closure_reason}` : ''}.
+          </Typography>
+        </Alert>
+      )}
 
       <Tabs value={tab} onChange={(_, v) => setTab(v)} sx={{ mb: 3 }}>
         <Tab label="Documents" icon={<Description />} iconPosition="start" />
@@ -178,16 +197,50 @@ export default function ClientShipmentDetail() {
                   ))}
                 </TextField>
                 <TextField
-                  label="Title (optional)"
+                  label={
+                    upload.document_type === 'other'
+                      ? 'Title (required for Other)'
+                      : 'Title (optional)'
+                  }
                   value={upload.title}
                   onChange={(e) => setUpload({ ...upload, title: e.target.value })}
                   fullWidth
+                  required={upload.document_type === 'other'}
+                  error={upload.document_type === 'other' && !String(upload.title || '').trim()}
+                  helperText={
+                    upload.document_type === 'other'
+                      ? 'Other documents must have a title. You can upload multiple Other files.'
+                      : undefined
+                  }
                 />
                 <Button variant="outlined" component="label">
                   {upload.file ? upload.file.name : 'Choose file'}
-                  <input type="file" hidden accept=".pdf,image/*" onChange={(e) => setUpload({ ...upload, file: e.target.files?.[0] })} />
+                  <input
+                    type="file"
+                    hidden
+                    accept=".pdf,image/*"
+                    onChange={(e) =>
+                      setUpload({
+                        ...upload,
+                        file: e.target.files?.[0],
+                        title:
+                          upload.title ||
+                          (upload.document_type === 'other' && e.target.files?.[0]
+                            ? e.target.files[0].name.replace(/\.[^/.]+$/, '')
+                            : upload.title),
+                      })
+                    }
+                  />
                 </Button>
-                <Button variant="contained" startIcon={<Upload />} onClick={handleUpload} disabled={uploading}>
+                <Button
+                  variant="contained"
+                  startIcon={<Upload />}
+                  onClick={handleUpload}
+                  disabled={
+                    uploading ||
+                    (upload.document_type === 'other' && !String(upload.title || '').trim())
+                  }
+                >
                   {uploading ? 'Uploading...' : 'Upload'}
                 </Button>
               </Stack>

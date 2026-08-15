@@ -70,6 +70,7 @@ import {
   DeleteSweep,
   Timeline,
   History,
+  Lock,
 } from '@mui/icons-material'
 import { shipmentsAPI, usersAPI, clientsAPI, depotsAPI, clearanceActivitiesAPI } from '../services/api'
 import { toast } from 'react-toastify'
@@ -82,6 +83,12 @@ import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 import ResourceAlertBadges from '../components/ResourceAlertBadges'
 import { useUnreadNotifications } from '../hooks/useNotifications'
 import { indexResourceAlerts } from '../utils/notificationNavigation'
+import {
+  formatShipmentStatusLabel,
+  shipmentStatusChipColor,
+  isMissionTerminal,
+  isMissionClosed,
+} from '../utils/shipmentStatus'
 import {
   showSuccessAlert,
   showErrorAlert,
@@ -347,6 +354,36 @@ const Shipments = () => {
     }
   }
 
+  const handleCloseMission = async () => {
+    const shipment = actionMenu.shipment
+    if (!shipment?.id) return
+    const shipmentId = shipment.id
+    handleCloseActionsMenu()
+
+    if (isMissionTerminal(shipment.status)) {
+      showErrorAlert('Unavailable', 'This mission is already closed or cancelled')
+      return
+    }
+
+    const result = await showConfirmDialog(
+      'Close Mission',
+      'Close this consignment mission? Clients and field staff will see it as Mission closed. Operational updates will stop.',
+      'Yes, Close Mission'
+    )
+    if (result.isConfirmed) {
+      showLoadingAlert('Closing mission...')
+      try {
+        await shipmentsAPI.closeMission(shipmentId, 'Closed via admin cockpit')
+        closeAlert()
+        await showSuccessAlert('Closed', 'Mission has been closed')
+        fetchShipments()
+      } catch (error) {
+        closeAlert()
+        showErrorAlert('Failed', error.response?.data?.detail || 'Could not close mission')
+      }
+    }
+  }
+
   const handleBatchDelete = async () => {
     if (selectedShipments.length === 0) return
     const result = await showConfirmDialog(
@@ -535,9 +572,15 @@ const Shipments = () => {
                 const unread = resourceAlerts[row.id] || {}
                 return (
                   <Stack spacing={0.5}>
-                    <Stack direction="row" spacing={1.5} alignItems="center">
+                    <Stack direction="row" spacing={1.5} alignItems="center" flexWrap="wrap" useFlexGap>
                       {row.is_overdue && <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'error.main' }} />}
                       <Typography variant="body2" fontWeight={800}>{row.shipment_number}</Typography>
+                      <Chip
+                        size="small"
+                        label={formatShipmentStatusLabel(row.status)}
+                        color={shipmentStatusChipColor(row.status)}
+                        sx={{ fontWeight: 800, fontSize: '0.65rem', textTransform: 'capitalize' }}
+                      />
                     </Stack>
                     <ResourceAlertBadges
                       queries={row.open_query_count}
@@ -673,7 +716,20 @@ const Shipments = () => {
           <ListItemText primary="Delegate Staff" secondary="Assign field staff to checkpoints" />
         </MenuItem>
         <Divider />
-        <MenuItem onClick={handleCancelShipment}>
+        <MenuItem
+          onClick={handleCloseMission}
+          disabled={isMissionTerminal(actionMenu.shipment?.status)}
+        >
+          <ListItemIcon><Lock fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText
+            primary={isMissionClosed(actionMenu.shipment?.status) ? 'Mission closed' : 'Close Mission'}
+            secondary="Mark consignment complete for all parties"
+          />
+        </MenuItem>
+        <MenuItem
+          onClick={handleCancelShipment}
+          disabled={isMissionTerminal(actionMenu.shipment?.status)}
+        >
           <ListItemIcon><Cancel fontSize="small" color="error" /></ListItemIcon>
           <ListItemText primary="Abort Mission" secondary="Record termination" primaryTypographyProps={{ color: 'error.main' }} />
         </MenuItem>

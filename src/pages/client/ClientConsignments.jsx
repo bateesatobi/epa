@@ -15,6 +15,7 @@ import {
 } from '@mui/material'
 import { Search, ArrowForward, FlightTakeoff, FlightLand } from '@mui/icons-material'
 import { clientPortalAPI } from '../../services/clientPortalApi'
+import { formatShipmentStatusLabel, shipmentStatusChipColor } from '../../utils/shipmentStatus'
 
 export default function ClientConsignments() {
   const navigate = useNavigate()
@@ -98,7 +99,13 @@ export default function ClientConsignments() {
                       <Typography variant="h6" fontWeight={700}>
                         {s.shipment_number}
                       </Typography>
-                      <Chip label={s.status || 'Pending'} size="small" color="primary" variant="outlined" />
+                      <Chip
+                        label={formatShipmentStatusLabel(s.status)}
+                        size="small"
+                        color={shipmentStatusChipColor(s.status)}
+                        variant="outlined"
+                        sx={{ fontWeight: 700, textTransform: 'capitalize' }}
+                      />
                     </Stack>
                     <Stack direction="row" spacing={1} alignItems="center" color="text.secondary" mb={2}>
                       <FlightTakeoff fontSize="small" />
