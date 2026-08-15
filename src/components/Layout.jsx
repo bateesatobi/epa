@@ -172,26 +172,6 @@ const navigationSections = [
       },
     ],
   },
-  {
-    title: 'Field Staff Panel',
-    caption: 'Mobile-parity field workspace',
-    icon: <HomeIcon fontSize="small" />,
-    items: [
-      {
-        text: 'Field Staff Home',
-        icon: <HomeIcon />,
-        path: '/dashboard/field-staff',
-        roles: ['admin'],
-        exact: true,
-      },
-      {
-        text: 'My Assignments',
-        icon: <Assignment />,
-        path: '/dashboard/field-staff/assignments',
-        roles: ['admin'],
-      },
-    ],
-  },
 ]
 
 /** Field staff sidebar — mirrors the mobile Field Staff app tabs & shortcuts. */
