@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import { useQuery, keepPreviousData } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
@@ -206,6 +206,30 @@ const Shipments = () => {
     () => indexResourceAlerts(unreadNotifications),
     [unreadNotifications]
   )
+
+  useEffect(() => {
+    setSelectedShipments([])
+  }, [tabValue])
+
+  const isShipmentSelected = (id) => selectedShipments.some((s) => s.id === id)
+
+  const handleSelectShipment = (shipment, checked) => {
+    if (checked) {
+      setSelectedShipments((prev) =>
+        prev.some((s) => s.id === shipment.id) ? prev : [...prev, shipment]
+      )
+    } else {
+      setSelectedShipments((prev) => prev.filter((s) => s.id !== shipment.id))
+    }
+  }
+
+  const handleSelectAllShipments = (event) => {
+    if (event.target.checked) {
+      setSelectedShipments([...shipments])
+    } else {
+      setSelectedShipments([])
+    }
+  }
 
   const handleOpenDialog = () => {
     setEditingShipment(null)
@@ -579,15 +603,30 @@ const Shipments = () => {
             {
               field: 'select',
               headerName: '',
+              stopRowClick: true,
+              headerPadding: 'checkbox',
+              cellPadding: 'checkbox',
+              headerRender: () => (
+                <Checkbox
+                  indeterminate={
+                    selectedShipments.length > 0 && selectedShipments.length < shipments.length
+                  }
+                  checked={shipments.length > 0 && selectedShipments.length === shipments.length}
+                  onChange={handleSelectAllShipments}
+                  size="small"
+                  inputProps={{ 'aria-label': 'Select all consignments' }}
+                />
+              ),
               render: (row) => (
                 <Checkbox
-                  checked={selectedShipments.some((s) => s.id === row.id)}
+                  checked={isShipmentSelected(row.id)}
+                  onClick={(e) => e.stopPropagation()}
                   onChange={(e) => {
                     e.stopPropagation()
-                    if (e.target.checked) setSelectedShipments([...selectedShipments, row])
-                    else setSelectedShipments(selectedShipments.filter(s => s.id !== row.id))
+                    handleSelectShipment(row, e.target.checked)
                   }}
                   size="small"
+                  inputProps={{ 'aria-label': `Select ${row.shipment_number}` }}
                 />
               ),
             },
@@ -644,9 +683,14 @@ const Shipments = () => {
               field: 'actions',
               headerName: 'Actions',
               align: 'right',
+              stopRowClick: true,
               render: (row) => (
                 <Box>
-                  <IconButton size="small" onClick={(e) => handleOpenActionsMenu(e, row)} color="primary">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => handleOpenActionsMenu(e, row)}
+                    color="primary"
+                  >
                     <MoreVert fontSize="small" />
                   </IconButton>
                 </Box>

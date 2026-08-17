@@ -160,9 +160,13 @@ const DataTable = ({
                     py: 2,
                     borderBottom: '2px solid',
                     borderColor: 'divider',
+                    ...(column.headerPadding ? { px: column.headerPadding === 'checkbox' ? 1 : undefined } : {}),
                   }}
+                  padding={column.headerPadding || 'normal'}
                 >
-                  {column.headerName || column.label}
+                  {column.headerRender
+                    ? column.headerRender()
+                    : column.headerName || column.label}
                 </TableCell>
               ))}
             </TableRow>
@@ -205,6 +209,10 @@ const DataTable = ({
                     <TableCell 
                       key={column.field} 
                       align={column.align || 'left'}
+                      padding={column.cellPadding || 'normal'}
+                      onClick={(e) => {
+                        if (column.stopRowClick) e.stopPropagation()
+                      }}
                       sx={{ 
                         py: 2,
                         fontSize: '0.875rem',
