@@ -242,6 +242,10 @@ export const shipmentsAPI = {
     )
     return response.data
   },
+  delete: async (id) => {
+    const response = await api.delete(`/api/shipments/${id}`)
+    return response.data
+  },
   assign: async (id, data) => {
     const response = await api.post(`/api/shipments/${id}/assign`, data)
     return response.data

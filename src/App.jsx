@@ -1,5 +1,5 @@
 import React from 'react'
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 import { ClientAuthProvider } from './contexts/ClientAuthContext'
@@ -20,7 +20,6 @@ import Users from './pages/Users'
 import Shipments from './pages/Shipments'
 import ShipmentDetail from './pages/ShipmentDetail'
 import Compliance from './pages/Compliance'
-import ComplianceDetail from './pages/ComplianceDetail'
 import Reports from './pages/Reports'
 import FieldStaffPerformance from './pages/FieldStaffPerformance'
 import Notifications from './pages/Notifications'
@@ -59,6 +58,21 @@ function PrivateRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/login" />
 }
 
+function ComplianceToConsignmentRedirect() {
+  const { shipmentId } = useParams()
+  const location = useLocation()
+  if (!shipmentId) {
+    return <Navigate to="/dashboard/compliance" replace />
+  }
+  return (
+    <Navigate
+      to={`/dashboard/shipments/${shipmentId}?tab=compliance`}
+      replace
+      state={location.state}
+    />
+  )
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -91,7 +105,7 @@ function AppRoutes() {
         <Route path="shipments/:shipmentId" element={<ShipmentDetail />} />
         <Route path="shipments/:shipmentId/clearance-history" element={<ShipmentClearanceHistoryPage />} />
         <Route path="compliance" element={<Compliance />} />
-        <Route path="compliance/:shipmentId" element={<ComplianceDetail />} />
+        <Route path="compliance/:shipmentId" element={<ComplianceToConsignmentRedirect />} />
         <Route path="reports" element={<Reports />} />
         <Route path="field-staff-performance" element={<FieldStaffPerformance />} />
         <Route path="notifications" element={<Notifications />} />
@@ -115,7 +129,8 @@ function AppRoutes() {
       {/* Legacy staff root redirect */}
       <Route path="/users" element={<Navigate to="/dashboard/users" replace />} />
       <Route path="/shipments/*" element={<Navigate to="/dashboard/shipments" replace />} />
-      <Route path="/compliance/*" element={<Navigate to="/dashboard/compliance" replace />} />
+      <Route path="/compliance" element={<Navigate to="/dashboard/compliance" replace />} />
+      <Route path="/compliance/:shipmentId" element={<ComplianceToConsignmentRedirect />} />
       <Route path="/notifications" element={<Navigate to="/dashboard/notifications" replace />} />
       <Route path="/reports" element={<Navigate to="/dashboard/reports" replace />} />
       <Route path="/feedback" element={<Navigate to="/dashboard/feedback" replace />} />

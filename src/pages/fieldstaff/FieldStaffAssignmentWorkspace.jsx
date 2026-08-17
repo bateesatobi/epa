@@ -64,7 +64,6 @@ const REQUIRED_DOC_TYPES = [
   { value: 'im8', label: 'IM8' },
 ]
 
-
 const TAB_KEYS = ['info', 'timeline', 'documents', 'queries']
 
 function fileToBase64(file) {

@@ -384,6 +384,32 @@ const Shipments = () => {
     }
   }
 
+  const handleDeleteConsignment = async () => {
+    const shipment = actionMenu.shipment
+    if (!shipment?.id) return
+    const shipmentId = shipment.id
+    const shipmentNumber = shipment.shipment_number
+    handleCloseActionsMenu()
+
+    const result = await showConfirmDialog(
+      'Delete consignment',
+      `Permanently delete ${shipmentNumber}? This removes the consignment, documents, assignments, queries, and the original request. This cannot be undone.`,
+      'Yes, delete permanently'
+    )
+    if (!result.isConfirmed) return
+    showLoadingAlert('Deleting consignment...')
+    try {
+      await shipmentsAPI.delete(shipmentId)
+      closeAlert()
+      await showSuccessAlert('Deleted', 'Consignment has been removed')
+      setSelectedShipments((prev) => prev.filter((s) => s.id !== shipmentId))
+      fetchShipments()
+    } catch (error) {
+      closeAlert()
+      showErrorAlert('Failed', error.response?.data?.detail || 'Could not delete consignment')
+    }
+  }
+
   const handleBatchDelete = async () => {
     if (selectedShipments.length === 0) return
     const result = await showConfirmDialog(
@@ -733,6 +759,16 @@ const Shipments = () => {
           <ListItemIcon><Cancel fontSize="small" color="error" /></ListItemIcon>
           <ListItemText primary="Abort Mission" secondary="Record termination" primaryTypographyProps={{ color: 'error.main' }} />
         </MenuItem>
+        {isAdmin && (
+          <MenuItem onClick={handleDeleteConsignment}>
+            <ListItemIcon><Delete fontSize="small" color="error" /></ListItemIcon>
+            <ListItemText
+              primary="Delete consignment"
+              secondary="Permanently remove all records"
+              primaryTypographyProps={{ color: 'error.main' }}
+            />
+          </MenuItem>
+        )}
       </Menu>
 
       {/* Staff Delegation Deck */}

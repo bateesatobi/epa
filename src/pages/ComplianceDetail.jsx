@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useLocation } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -98,6 +98,7 @@ import {
 const ComplianceDetail = () => {
   const { shipmentId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { user, isAdmin, isStaff } = useAuth()
   const [shipment, setShipment] = useState(null)
   const [documents, setDocuments] = useState([])
@@ -143,6 +144,13 @@ const ComplianceDetail = () => {
       fetchData()
     }
   }, [shipmentId])
+
+  useEffect(() => {
+    if (location.state?.openUpload && shipment) {
+      setOpenUploadDialog(true)
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location.state, shipment, location.pathname, navigate])
 
   const fetchData = async () => {
     try {
@@ -491,7 +499,7 @@ const ComplianceDetail = () => {
   if (!shipment) {
     return (
       <Box>
-        <Button startIcon={<ArrowBack />} onClick={() => navigate(-1)} sx={{ mb: 2 }}>
+        <Button startIcon={<ArrowBack />} onClick={() => navigate('/dashboard/compliance')} sx={{ mb: 2 }}>
           Back to Compliance
         </Button>
         <Alert severity="error">Shipment not found</Alert>
@@ -506,7 +514,7 @@ const ComplianceDetail = () => {
         <Stack direction="row" alignItems="center" spacing={3}>
           <Button 
             startIcon={<ArrowBack />} 
-            onClick={() => navigate(-1)}
+            onClick={() => navigate('/dashboard/compliance')}
             variant="text"
             sx={{ color: 'text.secondary', '&:hover': { color: 'primary.main' } }}
           >
@@ -526,7 +534,7 @@ const ComplianceDetail = () => {
           </Avatar>
           <Box sx={{ flex: 1 }}>
             <Typography variant="h4" fontWeight={700} color="text.primary">
-              Checklist Details
+              Compliance Details
             </Typography>
             <Typography variant="body1" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <LocalShipping fontSize="inherit" />
@@ -1420,7 +1428,7 @@ const ComplianceDetail = () => {
       >
         <Stack direction="row" alignItems="center" justifyContent="space-between" mb={4}>
           <Typography variant="h5" fontWeight={800} display="flex" alignItems="center" gap={1.5}>
-            <ChatBubbleOutline color="primary" /> Checklist Queries
+            <ChatBubbleOutline color="primary" /> Compliance Queries
           </Typography>
           <IconButton onClick={() => setOpenQueriesDrawer(false)}>
             <Close />

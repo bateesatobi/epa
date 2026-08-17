@@ -32,6 +32,7 @@ import {
   MoreVert,
   DeleteSweep,
   Cancel,
+  Upload,
 } from '@mui/icons-material'
 import { complianceAPI, shipmentsAPI } from '../services/api'
 import { toast } from 'react-toastify'
@@ -60,8 +61,10 @@ const Compliance = () => {
   const [actionMenu, setActionMenu] = useState({ anchorEl: null, shipment: null })
   const [selectedShipments, setSelectedShipments] = useState([])
 
-  const handleView = (shipment) => {
-    navigate(`/compliance/${shipment.id}`)
+  const handleView = (shipment, openUpload = false) => {
+    navigate(`/dashboard/shipments/${shipment.id}?tab=compliance`, {
+      state: openUpload ? { openUpload: true } : undefined,
+    })
   }
 
   const openActionsMenu = Boolean(actionMenu.anchorEl)
@@ -78,6 +81,12 @@ const Compliance = () => {
   const handleMenuView = () => {
     if (!actionMenu.shipment) return
     handleView(actionMenu.shipment)
+    handleCloseActionsMenu()
+  }
+
+  const handleMenuUpload = () => {
+    if (!actionMenu.shipment) return
+    handleView(actionMenu.shipment, true)
     handleCloseActionsMenu()
   }
 
@@ -147,10 +156,10 @@ const Compliance = () => {
         </Avatar>
         <Box>
           <Typography variant="h4" gutterBottom fontWeight="bold" sx={{ mb: 0 }}>
-            Checklist Management
+            Compliance Management
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Manage client documents, track compliance, and communicate with clients
+            Overview of consignment documents. Open a row to upload, update, or delete files on that consignment.
           </Typography>
         </Box>
       </Stack>
@@ -217,7 +226,12 @@ const Compliance = () => {
                 </TableRow>
               ) : (
                 shipments.map((shipment) => (
-                  <TableRow key={shipment.id} hover>
+                  <TableRow
+                    key={shipment.id}
+                    hover
+                    onClick={() => handleView(shipment)}
+                    sx={{ cursor: 'pointer' }}
+                  >
                     <TableCell padding="checkbox">
                       <Checkbox
                         checked={selectedShipments.some((s) => s.id === shipment.id)}
@@ -305,7 +319,13 @@ const Compliance = () => {
           <ListItemIcon>
             <Visibility fontSize="small" />
           </ListItemIcon>
-          <ListItemText primary="View" secondary="View compliance details and documents" />
+          <ListItemText primary="View" secondary="Open this consignment’s compliance documents" />
+        </MenuItem>
+        <MenuItem onClick={handleMenuUpload}>
+          <ListItemIcon>
+            <Upload fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Upload documents" secondary="Add compliance files for this consignment" />
         </MenuItem>
       </Menu>
     </Box>

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -53,6 +53,7 @@ import {
   Send,
   Download,
   Lock,
+  Delete,
 } from '@mui/icons-material'
 import { format, formatDistanceToNow } from 'date-fns'
 import { shipmentsAPI, complianceAPI, clearanceActivitiesAPI, commentsAPI } from '../services/api'
@@ -70,6 +71,7 @@ import {
   showConfirmDialog,
 } from '../utils/alerts'
 import ShipmentQueries from '../components/ShipmentQueries'
+import ConsignmentDocuments from '../components/consignment/ConsignmentDocuments'
 import ResourceAlertBadges from '../components/ResourceAlertBadges'
 import { useUnreadNotifications } from '../hooks/useNotifications'
 import { indexResourceAlerts } from '../utils/notificationNavigation'
@@ -111,7 +113,8 @@ const normaliseStatusLabel = (status) => {
 
 const ShipmentDetail = () => {
   const { shipmentId } = useParams()
-  const [searchParams] = useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const location = useLocation()
   const navigate = useNavigate()
   const { user, isAdmin, isStaff } = useAuth()
   const [shipment, setShipment] = useState(null)
@@ -140,6 +143,17 @@ const ShipmentDetail = () => {
     () => indexResourceAlerts(unreadNotifications)[Number(shipmentId)] || { queries: 0, feedback: 0 },
     [unreadNotifications, shipmentId]
   )
+  const requestedTab = searchParams.get('tab')
+  const mainTab = requestedTab === 'compliance' || requestedTab === 'documents' ? 'compliance' : 'info'
+  const [openUploadOnMount] = useState(() => Boolean(location.state?.openUpload))
+
+  const setMainTab = (value) => {
+    if (value === 'compliance') {
+      setSearchParams({ tab: 'compliance' }, { replace: true })
+      return
+    }
+    setSearchParams({}, { replace: true })
+  }
 
   const fetchShipment = async (showLoader = true) => {
     if (!shipmentId) {
@@ -210,6 +224,12 @@ const ShipmentDetail = () => {
     return () => clearTimeout(timer)
   }, [loading, shipment, searchParams])
 
+  useEffect(() => {
+    if (!location.state?.openUpload) return
+    navigate(`${location.pathname}?tab=compliance`, { replace: true, state: {} })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state?.openUpload])
+
   const handleDownloadReport = async () => {
     if (!shipmentId) return
     setDownloadingReport(true)
@@ -264,6 +284,26 @@ const ShipmentDetail = () => {
     } catch (error) {
       closeAlert()
       showErrorAlert('Failed', error.response?.data?.detail || 'Could not close mission')
+    }
+  }
+
+  const handleDeleteConsignment = async () => {
+    if (!shipmentId || !shipment) return
+    const result = await showConfirmDialog(
+      'Delete consignment',
+      `Permanently delete ${shipment.shipment_number}? This removes the consignment, documents, assignments, queries, and the original request. This cannot be undone.`,
+      'Yes, delete permanently'
+    )
+    if (!result.isConfirmed) return
+    showLoadingAlert('Deleting consignment...')
+    try {
+      await shipmentsAPI.delete(shipmentId)
+      closeAlert()
+      await showSuccessAlert('Deleted', 'Consignment has been removed')
+      navigate('/dashboard/shipments')
+    } catch (error) {
+      closeAlert()
+      showErrorAlert('Failed', error.response?.data?.detail || 'Could not delete consignment')
     }
   }
 
@@ -601,11 +641,8 @@ const ShipmentDetail = () => {
     },
   ]
 
-  const currentLocation = shipment.current_location || 'Not provided'
-  const t1Forms = complianceSummary?.t1_forms || []
-  const latestT1 = complianceSummary?.latest_t1_form
-  const seals = complianceSummary?.seals || []
-  const latestSeal = complianceSummary?.latest_seal
+  const uploadedDocs = complianceSummary?.total_documents ?? 0
+  const missingDocs = complianceSummary?.missing_documents ?? 0
 
   return (
     <Box sx={{ pb: 6 }}>
@@ -672,6 +709,17 @@ const ShipmentDetail = () => {
                 Close mission
               </Button>
             )}
+            {isAdmin && (
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<Delete />}
+                onClick={handleDeleteConsignment}
+                sx={{ fontWeight: 800 }}
+              >
+                Delete consignment
+              </Button>
+            )}
             <Button
               variant="outlined"
               startIcon={
@@ -708,6 +756,39 @@ const ShipmentDetail = () => {
         </Alert>
       )}
 
+      <Paper elevation={0} sx={{ mb: 3, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}>
+        <Tabs
+          value={mainTab}
+          onChange={(_, value) => setMainTab(value)}
+          sx={{ px: 2 }}
+        >
+          <Tab value="info" label="Info" sx={{ fontWeight: 800, textTransform: 'none' }} />
+          <Tab
+            value="compliance"
+            label={
+              <Stack direction="row" spacing={1} alignItems="center">
+                <span>Compliance</span>
+                <Chip
+                  size="small"
+                  label={complianceSummary?.total_documents ?? uploadedDocs}
+                  sx={{ height: 20, fontWeight: 800 }}
+                />
+              </Stack>
+            }
+            sx={{ fontWeight: 800, textTransform: 'none' }}
+          />
+        </Tabs>
+      </Paper>
+
+      {mainTab === 'compliance' ? (
+        <ConsignmentDocuments
+          shipment={shipment}
+          canManage={isAdmin || isStaff}
+          onChanged={() => fetchShipment(false)}
+          initialOpenUpload={openUploadOnMount}
+        />
+      ) : (
+        <>
       {/* Metrics Row - Reduces sidebar congestion */}
       <Grid container spacing={3} mb={3}>
         <Grid item xs={12} sm={6} md={3}>
@@ -729,18 +810,30 @@ const ShipmentDetail = () => {
           </Paper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider', height: '100%' }}>
+          <Paper
+            elevation={0}
+            onClick={() => setMainTab('compliance')}
+            sx={{
+              p: 2,
+              borderRadius: 3,
+              border: '1px solid',
+              borderColor: 'divider',
+              height: '100%',
+              cursor: 'pointer',
+              '&:hover': { borderColor: 'primary.main' },
+            }}
+          >
             <Stack direction="row" spacing={2} alignItems="center">
               <Box sx={{ p: 1.5, borderRadius: 2, bgcolor: alpha('#4CAF50', 0.1), color: '#4CAF50' }}>
                 <Inventory2 />
               </Box>
               <Box>
                 <Typography variant="caption" color="text.secondary" fontWeight={600}>COMPLIANCE DOCS</Typography>
-                <Typography variant="h5" fontWeight={800}>{t1Forms.length + seals.length}</Typography>
+                <Typography variant="h5" fontWeight={800}>{uploadedDocs}</Typography>
               </Box>
             </Stack>
             <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              {complianceSummary?.missing_count || 0} Action required
+              {missingDocs} Action required
             </Typography>
           </Paper>
         </Grid>
@@ -781,8 +874,8 @@ const ShipmentDetail = () => {
                 feedback={comments.length}
                 unreadQueries={unreadForShipment.queries}
                 unreadFeedback={unreadForShipment.feedback}
-                onQueryClick={() => document.getElementById('shipment-queries')?.scrollIntoView({ behavior: 'smooth' })}
-                onFeedbackClick={() => document.getElementById('shipment-comments')?.scrollIntoView({ behavior: 'smooth' })}
+                onQueryClick={() => setSearchParams({ tab: 'queries' }, { replace: true })}
+                onFeedbackClick={() => setSearchParams({ tab: 'comments' }, { replace: true })}
               />
             </Stack>
           </Paper>
@@ -1127,6 +1220,8 @@ const ShipmentDetail = () => {
           </Grid>
         </Paper>
       </Box>
+        </>
+      )}
 
       {/* Update Status Dialog */}
       <FormDialog

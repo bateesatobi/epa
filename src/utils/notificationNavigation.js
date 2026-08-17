@@ -93,7 +93,7 @@ export function getAdminNotificationTarget(notification) {
   }
   if (SHIPMENT_TYPES.has(type) || type.includes('shipment')) {
     const search = ['compliance', 'document_request', 'document'].includes(type)
-      ? '?tab=documents'
+      ? '?tab=compliance'
       : ''
     return { pathname: `/dashboard/shipments/${id}`, search }
   }

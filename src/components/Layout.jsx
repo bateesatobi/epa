@@ -32,7 +32,7 @@ import {
   Dashboard as DashboardIcon,
   People as PeopleIcon,
   LocalShipping as ShipmentsIcon,
-  VerifiedUser as ComplianceIcon,
+  // VerifiedUser as ComplianceIcon,
   Assessment as ReportsIcon,
   Logout,
   Notifications,
@@ -106,13 +106,13 @@ const navigationSections = [
     caption: 'Governance & performance',
     icon: <SecurityOutlinedIcon fontSize="small" />, 
     items: [
-      { 
-        text: 'Checklist', 
-        icon: <ComplianceIcon />, 
-        path: '/dashboard/compliance',
-        roles: ['admin', 'reporting-officer']
-      },
-      { 
+      // {
+      //   text: 'Compliance',
+      //   icon: <ComplianceIcon />,
+      //   path: '/dashboard/compliance',
+      //   roles: ['admin', 'reporting-officer']
+      // },
+      {
         text: 'Reports', 
         icon: <ReportsIcon />, 
         path: '/dashboard/reports',
