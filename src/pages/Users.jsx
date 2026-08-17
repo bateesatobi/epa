@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
   Typography,
@@ -75,6 +76,8 @@ import {
   AccountCircle,
   PhotoCamera,
   Search,
+  Link as LinkIcon,
+  OpenInNew,
 } from '@mui/icons-material'
 import { usersAPI, authAPI, clientsAPI } from '../services/api'
 import { toast } from 'react-toastify'
@@ -95,6 +98,7 @@ import {
 } from '../utils/alerts'
 
 const Users = () => {
+  const navigate = useNavigate()
   const [submitting, setSubmitting] = useState(false)
   const [openDialog, setOpenDialog] = useState(false)
   const [openPasswordDialog, setOpenPasswordDialog] = useState(false)
@@ -115,6 +119,8 @@ const Users = () => {
   const [actionMenu, setActionMenu] = useState({ anchorEl: null, user: null })
   const [clientActionMenu, setClientActionMenu] = useState({ anchorEl: null, client: null })
   const [approvalData, setApprovalData] = useState({ status: 'approved', rejection_reason: '' })
+  const [selectedWalkInIds, setSelectedWalkInIds] = useState([])
+  const [linkingWalkIns, setLinkingWalkIns] = useState(false)
   
   const [formData, setFormData] = useState({
     email: '',
@@ -181,11 +187,64 @@ const Users = () => {
         console.error('Failed to load documents:', docError)
         clientData.documents = []
       }
+      try {
+        const walkIns = await clientsAPI.getWalkInShipments(client.id)
+        clientData.walk_in_shipments = walkIns
+      } catch (walkInError) {
+        console.error('Failed to load walk-in consignments:', walkInError)
+        clientData.walk_in_shipments = []
+      }
+      setSelectedWalkInIds([])
       setViewingClient(clientData)
       setOpenClientViewDialog(true)
     } catch (error) {
       showErrorAlert('Failed', 'Failed to load client details')
     }
+  }
+
+  const refreshClientWalkIns = async (clientId) => {
+    try {
+      const walkIns = await clientsAPI.getWalkInShipments(clientId)
+      setViewingClient((prev) => (prev ? { ...prev, walk_in_shipments: walkIns } : prev))
+      setSelectedWalkInIds([])
+    } catch (error) {
+      console.error('Failed to refresh walk-in consignments:', error)
+    }
+  }
+
+  const handleLinkWalkIns = async (clientId, { shipmentIds = [], linkAll = false }) => {
+    setLinkingWalkIns(true)
+    const loadingAlert = showLoadingAlert('Linking...', 'Attaching consignments to client account')
+    try {
+      const result = await clientsAPI.linkWalkInShipments(clientId, {
+        shipment_ids: shipmentIds,
+        link_all_matches: linkAll,
+      })
+      closeAlert()
+      await showSuccessAlert(
+        'Linked',
+        `${result.linked_count} consignment${result.linked_count === 1 ? '' : 's'} linked to this client`
+      )
+      await refreshClientWalkIns(clientId)
+      fetchClients()
+    } catch (error) {
+      closeAlert()
+      showErrorAlert('Failed', error.response?.data?.detail || 'Failed to link consignments')
+    } finally {
+      setLinkingWalkIns(false)
+    }
+  }
+
+  const toggleWalkInSelection = (shipmentId) => {
+    setSelectedWalkInIds((prev) =>
+      prev.includes(shipmentId) ? prev.filter((id) => id !== shipmentId) : [...prev, shipmentId]
+    )
+  }
+
+  const toggleAllWalkInSelection = (walkIns) => {
+    if (!walkIns?.length) return
+    const allIds = walkIns.map((s) => s.id)
+    setSelectedWalkInIds((prev) => (prev.length === allIds.length ? [] : allIds))
   }
 
   const handleApproveClient = async (clientId) => {
@@ -1764,6 +1823,7 @@ const Users = () => {
         onClose={() => {
           setOpenClientViewDialog(false)
           setViewingClient(null)
+          setSelectedWalkInIds([])
         }}
         title="Client Details"
         submitText=""
@@ -1934,6 +1994,147 @@ const Users = () => {
                   )}
                 </Card>
               </Grid>
+              {viewingClient.status === 'approved' && (
+                <Grid item xs={12}>
+                  <Card variant="outlined" sx={{ p: 2 }}>
+                    <Stack
+                      direction={{ xs: 'column', sm: 'row' }}
+                      justifyContent="space-between"
+                      alignItems={{ xs: 'flex-start', sm: 'center' }}
+                      spacing={2}
+                      mb={2}
+                    >
+                      <Box>
+                        <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
+                          <LocalShipping color="primary" fontSize="small" />
+                          <Typography variant="subtitle2" color="text.secondary" fontWeight={600}>
+                            Walk-in consignments
+                          </Typography>
+                        </Stack>
+                        <Typography variant="body2" color="text.secondary">
+                          Unlinked consignments matching this client&apos;s email, phone, or name
+                        </Typography>
+                      </Box>
+                      {viewingClient.walk_in_shipments?.length > 0 && (
+                        <Stack direction="row" spacing={1} flexWrap="wrap">
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            startIcon={<LinkIcon />}
+                            disabled={selectedWalkInIds.length === 0 || linkingWalkIns}
+                            onClick={() =>
+                              handleLinkWalkIns(viewingClient.id, { shipmentIds: selectedWalkInIds })
+                            }
+                          >
+                            Link selected ({selectedWalkInIds.length})
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="contained"
+                            startIcon={<LinkIcon />}
+                            disabled={linkingWalkIns}
+                            onClick={() => handleLinkWalkIns(viewingClient.id, { linkAll: true })}
+                          >
+                            Link all matches
+                          </Button>
+                        </Stack>
+                      )}
+                    </Stack>
+                    {viewingClient.walk_in_shipments?.length > 0 ? (
+                      <TableContainer>
+                        <Table size="small">
+                          <TableHead>
+                            <TableRow>
+                              <TableCell padding="checkbox">
+                                <Checkbox
+                                  indeterminate={
+                                    selectedWalkInIds.length > 0 &&
+                                    selectedWalkInIds.length < viewingClient.walk_in_shipments.length
+                                  }
+                                  checked={
+                                    viewingClient.walk_in_shipments.length > 0 &&
+                                    selectedWalkInIds.length === viewingClient.walk_in_shipments.length
+                                  }
+                                  onChange={() => toggleAllWalkInSelection(viewingClient.walk_in_shipments)}
+                                />
+                              </TableCell>
+                              <TableCell>Consignment</TableCell>
+                              <TableCell>Route</TableCell>
+                              <TableCell>Contact</TableCell>
+                              <TableCell>Match</TableCell>
+                              <TableCell>Created</TableCell>
+                              <TableCell align="right">Actions</TableCell>
+                            </TableRow>
+                          </TableHead>
+                          <TableBody>
+                            {viewingClient.walk_in_shipments.map((shipment) => (
+                              <TableRow key={shipment.id} hover>
+                                <TableCell padding="checkbox">
+                                  <Checkbox
+                                    checked={selectedWalkInIds.includes(shipment.id)}
+                                    onChange={() => toggleWalkInSelection(shipment.id)}
+                                  />
+                                </TableCell>
+                                <TableCell>
+                                  <Typography variant="body2" fontWeight={600}>
+                                    {shipment.shipment_number}
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {shipment.status?.replace(/_/g, ' ')}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell>
+                                  <Typography variant="body2">
+                                    {shipment.origin} → {shipment.destination}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell>
+                                  <Typography variant="body2">
+                                    {shipment.external_client_name || shipment.consignee_name}
+                                  </Typography>
+                                  {shipment.consignee_email && (
+                                    <Typography variant="caption" color="text.secondary" display="block">
+                                      {shipment.consignee_email}
+                                    </Typography>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                    {(shipment.match_reasons || []).map((reason) => (
+                                      <Chip key={reason} label={reason} size="small" variant="outlined" />
+                                    ))}
+                                  </Stack>
+                                </TableCell>
+                                <TableCell>
+                                  {shipment.created_at
+                                    ? format(new Date(shipment.created_at), 'MMM dd, yyyy')
+                                    : '—'}
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Tooltip title="Open consignment">
+                                    <IconButton
+                                      size="small"
+                                      onClick={() =>
+                                        navigate(`/dashboard/shipments/${shipment.id}`)
+                                      }
+                                    >
+                                      <OpenInNew fontSize="small" />
+                                    </IconButton>
+                                  </Tooltip>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </TableContainer>
+                    ) : (
+                      <Typography variant="body2" color="text.secondary">
+                        No matching walk-in consignments found
+                      </Typography>
+                    )}
+                  </Card>
+                </Grid>
+              )}
               {viewingClient.rejection_reason && (
                 <Grid item xs={12}>
                   <Alert severity="error">

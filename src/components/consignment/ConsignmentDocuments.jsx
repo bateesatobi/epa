@@ -60,10 +60,7 @@ export default function ConsignmentDocuments({
   }, [shipment?.id])
 
   const uploadDocument = async (docType, file, titleOverride) => {
-    if (!file || !shipment?.client_id) {
-      showErrorAlert('Unavailable', 'This consignment has no client to attach documents to')
-      return
-    }
+    if (!file || !shipment?.id) return
     const title =
       String(titleOverride || '').trim() ||
       file.name.replace(/\.[^/.]+$/, '').slice(0, 255) ||
@@ -78,18 +75,19 @@ export default function ConsignmentDocuments({
 
     try {
       const file_data = await fileToBase64(file)
-      await complianceAPI.uploadDocumentForClient(
-        shipment.client_id,
-        {
-          document_type: docType,
-          title: title.slice(0, 255),
-          file_data,
-          file_name: file.name,
-          file_size: file.size,
-          mime_type: file.type || 'application/octet-stream',
-        },
-        shipment.id
-      )
+      const payload = {
+        document_type: docType,
+        title: title.slice(0, 255),
+        file_data,
+        file_name: file.name,
+        file_size: file.size,
+        mime_type: file.type || 'application/octet-stream',
+      }
+      if (shipment.client_id) {
+        await complianceAPI.uploadDocumentForClient(shipment.client_id, payload, shipment.id)
+      } else {
+        await complianceAPI.uploadDocumentForShipment(shipment.id, payload)
+      }
       await showSuccessAlert('Uploaded', 'Document saved')
       await loadDocuments()
       onChanged?.()

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import {
   Box,
   Typography,
@@ -22,6 +23,8 @@ import {
   ListItemText,
   Avatar,
   IconButton,
+  Autocomplete,
+  TextField,
   alpha,
 } from '@mui/material'
 import {
@@ -54,9 +57,10 @@ import {
   Download,
   Lock,
   Delete,
+  Link as LinkIcon,
 } from '@mui/icons-material'
 import { format, formatDistanceToNow } from 'date-fns'
-import { shipmentsAPI, complianceAPI, clearanceActivitiesAPI, commentsAPI } from '../services/api'
+import { shipmentsAPI, complianceAPI, clearanceActivitiesAPI, commentsAPI, clientsAPI } from '../services/api'
 import { useAuth } from '../contexts/AuthContext'
 import { toast } from 'react-toastify'
 import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
@@ -138,6 +142,9 @@ const ShipmentDetail = () => {
   })
   const [submitting, setSubmitting] = useState(false)
   const [downloadingReport, setDownloadingReport] = useState(false)
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false)
+  const [linkClient, setLinkClient] = useState(null)
+  const [linkingClient, setLinkingClient] = useState(false)
   const { data: unreadNotifications = [] } = useUnreadNotifications()
   const unreadForShipment = useMemo(
     () => indexResourceAlerts(unreadNotifications)[Number(shipmentId)] || { queries: 0, feedback: 0 },
@@ -146,6 +153,33 @@ const ShipmentDetail = () => {
   const requestedTab = searchParams.get('tab')
   const mainTab = requestedTab === 'compliance' || requestedTab === 'documents' ? 'compliance' : 'info'
   const [openUploadOnMount] = useState(() => Boolean(location.state?.openUpload))
+
+  const isWalkInMission = Boolean(shipment && shipment.client_id == null)
+
+  const { data: approvedClients = [] } = useQuery({
+    queryKey: ['clientsApprovedForLink'],
+    queryFn: async () => {
+      const data = await clientsAPI.list({ status: 'approved', limit: 200 })
+      return Array.isArray(data) ? data : data?.items || []
+    },
+    enabled: isAdmin && linkDialogOpen,
+  })
+
+  const suggestedClients = useMemo(() => {
+    if (!shipment?.client_id && shipment) {
+      const email = String(shipment.consignee_email || '').trim().toLowerCase()
+      const name = String(shipment.external_client_name || shipment.consignee_name || '')
+        .trim()
+        .toLowerCase()
+      if (!email && !name) return []
+      return approvedClients.filter((client) => {
+        const clientEmail = String(client.email || '').trim().toLowerCase()
+        const clientName = String(client.name || '').trim().toLowerCase()
+        return (email && clientEmail === email) || (name && clientName.includes(name))
+      })
+    }
+    return []
+  }, [approvedClients, shipment])
 
   const setMainTab = (value) => {
     if (value === 'compliance') {
@@ -304,6 +338,33 @@ const ShipmentDetail = () => {
     } catch (error) {
       closeAlert()
       showErrorAlert('Failed', error.response?.data?.detail || 'Could not delete consignment')
+    }
+  }
+
+  const handleLinkToClient = async () => {
+    if (!shipmentId || !linkClient?.id) return
+    const walkInLabel =
+      shipment?.external_client_name || shipment?.consignee_name || 'this walk-in contact'
+    const result = await showConfirmDialog(
+      'Link to client account',
+      `Attach consignment ${shipment?.shipment_number} to ${linkClient.name} (${linkClient.company_name || 'client'})? Previously recorded as ${walkInLabel}. Compliance documents on this mission will move under that client.`,
+      'Yes, link consignment'
+    )
+    if (!result.isConfirmed) return
+    setLinkingClient(true)
+    showLoadingAlert('Linking consignment...')
+    try {
+      await shipmentsAPI.linkClient(shipmentId, linkClient.id)
+      closeAlert()
+      await showSuccessAlert('Linked', 'Consignment is now attached to the client account')
+      setLinkDialogOpen(false)
+      setLinkClient(null)
+      await fetchShipment(false)
+    } catch (error) {
+      closeAlert()
+      showErrorAlert('Failed', error.response?.data?.detail || 'Could not link consignment')
+    } finally {
+      setLinkingClient(false)
     }
   }
 
@@ -608,6 +669,13 @@ const ShipmentDetail = () => {
     },
     { label: 'Origin', value: shipment.origin, icon: <LocationOn fontSize="small" color="primary" /> },
     { label: 'Destination', value: shipment.destination, icon: <FlightTakeoff fontSize="small" color="primary" /> },
+    {
+      label: 'Client account',
+      value: shipment.client_id
+        ? `${shipment.client_name || 'Registered client'}${shipment.client_company ? ` · ${shipment.client_company}` : ''}`
+        : `${shipment.external_client_name || shipment.consignee_name || 'Walk-in contact'} · Not linked`,
+      icon: <PersonOutline fontSize="small" />,
+    },
     { label: "Shipper's Name", value: shipment.shipper_name || '—', icon: <PersonOutline fontSize="small" /> },
     { label: 'Consignee Name', value: shipment.consignee_name, icon: <PersonOutline fontSize="small" /> },
     { label: 'Consignee Email', value: shipment.consignee_email || '—', icon: <MailOutline fontSize="small" /> },
@@ -753,6 +821,33 @@ const ShipmentDetail = () => {
             : ''}
           {shipment.closure_reason ? ` — ${shipment.closure_reason}` : ''}.
           No further operational updates are expected.
+        </Alert>
+      )}
+
+      {isWalkInMission && isAdmin && (
+        <Alert
+          severity="warning"
+          sx={{ mb: 3, borderRadius: 2 }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              variant="outlined"
+              startIcon={<LinkIcon />}
+              onClick={() => {
+                setLinkClient(null)
+                setLinkDialogOpen(true)
+              }}
+              sx={{ fontWeight: 800, whiteSpace: 'nowrap' }}
+            >
+              Link to client
+            </Button>
+          }
+        >
+          <AlertTitle sx={{ fontWeight: 800 }}>Walk-in consignment</AlertTitle>
+          This mission is not linked to a client portal account
+          {shipment.external_client_name ? ` (${shipment.external_client_name})` : ''}.
+          When the contact registers, link it here so they can see this consignment online.
         </Alert>
       )}
 
@@ -1222,6 +1317,54 @@ const ShipmentDetail = () => {
       </Box>
         </>
       )}
+
+      {/* Link walk-in to registered client */}
+      <FormDialog
+        open={linkDialogOpen}
+        onClose={() => {
+          if (linkingClient) return
+          setLinkDialogOpen(false)
+          setLinkClient(null)
+        }}
+        title="Link to client account"
+        onSubmit={handleLinkToClient}
+        submitText="Link consignment"
+        loading={linkingClient}
+        maxWidth="sm"
+      >
+        <Stack spacing={2.5} sx={{ mt: 1 }}>
+          <Alert severity="info" sx={{ borderRadius: 2 }}>
+            Select the registered client who originally came in as a walk-in. Their portal account will gain access to this consignment and its documents.
+          </Alert>
+          {suggestedClients.length > 0 && (
+            <Box>
+              <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ display: 'block', mb: 1 }}>
+                Suggested matches (email or name)
+              </Typography>
+              <Stack direction="row" flexWrap="wrap" useFlexGap spacing={1}>
+                {suggestedClients.map((client) => (
+                  <Chip
+                    key={client.id}
+                    label={`${client.name}${client.email ? ` · ${client.email}` : ''}`}
+                    color={linkClient?.id === client.id ? 'primary' : 'default'}
+                    onClick={() => setLinkClient(client)}
+                    sx={{ fontWeight: 700 }}
+                  />
+                ))}
+              </Stack>
+            </Box>
+          )}
+          <Autocomplete
+            options={approvedClients}
+            getOptionLabel={(opt) => `${opt.name}${opt.company_name ? ` (${opt.company_name})` : ''}`}
+            value={linkClient}
+            onChange={(e, value) => setLinkClient(value)}
+            renderInput={(params) => (
+              <TextField {...params} label="Registered client" required placeholder="Search approved clients…" />
+            )}
+          />
+        </Stack>
+      </FormDialog>
 
       {/* Update Status Dialog */}
       <FormDialog

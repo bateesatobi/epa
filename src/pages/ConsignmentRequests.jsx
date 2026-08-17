@@ -249,6 +249,17 @@ export default function ConsignmentRequests() {
         ),
       },
       {
+        field: 'created_at',
+        label: 'Date',
+        minWidth: 120,
+        accessor: (row) => row.created_at,
+        render: (row) => (
+          <Typography variant="body2" fontWeight={500}>
+            {row.created_at ? format(new Date(row.created_at), 'MMM dd, yyyy') : '—'}
+          </Typography>
+        ),
+      },
+      {
         field: 'expected_arrival_date',
         label: 'Expected arrival',
         minWidth: 180,

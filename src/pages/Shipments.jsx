@@ -79,6 +79,7 @@ import DataTable from '../components/DataTable'
 import FormDialog from '../components/FormDialog'
 import FormTextField from '../components/FormTextField'
 import FormSelect from '../components/FormSelect'
+import MissionCreateWizard from '../components/consignment/MissionCreateWizard'
 import { PageSkeleton, LoadingOverlay } from '../components/LoadingStates'
 import ResourceAlertBadges from '../components/ResourceAlertBadges'
 import { useUnreadNotifications } from '../hooks/useNotifications'
@@ -105,10 +106,13 @@ const Shipments = () => {
   // Local UI States
   const [submitting, setSubmitting] = useState(false)
   const [openDialog, setOpenDialog] = useState(false)
+  const [openCreateWizard, setOpenCreateWizard] = useState(false)
   const [editingShipment, setEditingShipment] = useState(null)
   const [tabValue, setTabValue] = useState(0)
   const [formData, setFormData] = useState({
     client_id: '',
+    external_client_name: '',
+    external_client_company: '',
     origin: '',
     destination: '',
     shipper_name: '',
@@ -123,6 +127,7 @@ const Shipments = () => {
   const [openAssignmentsDialog, setOpenAssignmentsDialog] = useState(false)
   const [activityAssignments, setActivityAssignments] = useState([])
   const [selectedClient, setSelectedClient] = useState(null)
+  const [clientSourceMode, setClientSourceMode] = useState('registered')
   const [selectedShipments, setSelectedShipments] = useState([])
   const [assignmentFormData, setAssignmentFormData] = useState({
     user_id: '',
@@ -232,21 +237,12 @@ const Shipments = () => {
   }
 
   const handleOpenDialog = () => {
-    setEditingShipment(null)
-    setSelectedClient(null)
-    setFormData({
-      client_id: '',
-      origin: '',
-      destination: '',
-      shipper_name: '',
-      consignee_name: '',
-      consignee_email: '',
-      consignee_phone: '',
-      container_number: '',
-      cargo_description: '',
-      estimated_cost: '',
-    })
-    setOpenDialog(true)
+    setOpenCreateWizard(true)
+  }
+
+  const handleCreateWizardComplete = () => {
+    fetchShipments()
+    window.dispatchEvent(new Event('notifications:updated'))
   }
 
   const handleCloseDialog = () => {
@@ -259,8 +255,11 @@ const Shipments = () => {
   const populateEditForm = (shipment) => {
     const client = clients.find((c) => String(c.id) === String(shipment.client_id)) || null
     setSelectedClient(client)
+    setClientSourceMode(shipment.client_id ? 'registered' : 'external')
     setFormData({
       client_id: shipment.client_id || '',
+      external_client_name: shipment.external_client_name || shipment.client_name || '',
+      external_client_company: shipment.external_client_company || shipment.client_company || '',
       origin: shipment.origin || '',
       destination: shipment.destination || '',
       shipper_name: shipment.shipper_name || '',
@@ -275,12 +274,25 @@ const Shipments = () => {
 
   const normalizePayload = () => {
     const payload = {}
-    if (selectedClient?.id) {
-      payload.client_id = selectedClient.id
-    } else if (formData.client_id) {
-      payload.client_id = parseInt(formData.client_id, 10)
+    if (editingShipment) {
+      // Client link is fixed after creation
+    } else if (clientSourceMode === 'registered') {
+      if (selectedClient?.id) {
+        payload.client_id = selectedClient.id
+      } else if (formData.client_id) {
+        payload.client_id = parseInt(formData.client_id, 10)
+      } else {
+        throw new Error('Client is required')
+      }
     } else {
-      throw new Error('Client is required')
+      const externalName = formData.external_client_name?.trim()
+      if (!externalName) {
+        throw new Error('Client name is required for walk-in missions')
+      }
+      payload.external_client_name = externalName
+      if (formData.external_client_company?.trim()) {
+        payload.external_client_company = formData.external_client_company.trim()
+      }
     }
 
     payload.origin = formData.origin?.trim() || ''
@@ -302,31 +314,22 @@ const Shipments = () => {
   }
 
   const handleSubmit = async () => {
-    if (!editingShipment && !formData.client_id) {
-      showErrorAlert('Validation Error', 'Please select a client')
-      return
-    }
+    if (!editingShipment) return
+
     if (!formData.origin?.trim() || !formData.destination?.trim() || !formData.consignee_name?.trim()) {
       showErrorAlert('Validation Error', 'Please fill in all required fields')
       return
     }
 
     setSubmitting(true)
-    showLoadingAlert(editingShipment ? 'Updating Mission...' : 'Starting Mission...')
+    showLoadingAlert('Updating Mission...')
 
     try {
       const payload = normalizePayload()
-      if (editingShipment) {
-        delete payload.client_id
-        await shipmentsAPI.update(editingShipment.id, payload)
-        closeAlert()
-        await showSuccessAlert('Updated', 'Consignment has been updated successfully')
-      } else {
-        await shipmentsAPI.create(payload)
-        closeAlert()
-        await showSuccessAlert('Success', 'New consignment mission created')
-        window.dispatchEvent(new Event('notifications:updated'))
-      }
+      delete payload.client_id
+      await shipmentsAPI.update(editingShipment.id, payload)
+      closeAlert()
+      await showSuccessAlert('Updated', 'Consignment has been updated successfully')
       handleCloseDialog()
       fetchShipments()
     } catch (error) {
@@ -663,6 +666,15 @@ const Shipments = () => {
             { field: 'destination', headerName: 'Terminal' },
             { field: 'consignee_name', headerName: 'Consignee' },
             {
+              field: 'created_at',
+              headerName: 'Date',
+              render: (row) => (
+                <Typography variant="body2" fontWeight={500}>
+                  {row.created_at ? format(new Date(row.created_at), 'MMM dd, yyyy') : '—'}
+                </Typography>
+              ),
+            },
+            {
               field: 'status',
               headerName: 'Checkpoint',
               render: (row) => (
@@ -704,31 +716,62 @@ const Shipments = () => {
         />
       </Box>
 
-      {/* Global Mission Dialog (Create/Edit) */}
+      {/* Mission create wizard */}
+      <MissionCreateWizard
+        open={openCreateWizard}
+        onClose={() => setOpenCreateWizard(false)}
+        onComplete={handleCreateWizardComplete}
+        clients={clients}
+        depots={depots}
+      />
+
+      {/* Mission edit dialog */}
       <FormDialog
         open={openDialog}
         onClose={handleCloseDialog}
-        title={editingShipment ? 'Refine Mission Details' : 'Initialize Mission'}
+        title="Refine Mission Details"
         onSubmit={handleSubmit}
         loading={submitting}
         maxWidth="md"
       >
         <Grid container spacing={3} sx={{ mt: 1 }}>
-          <Grid item xs={12}>
-            <Autocomplete
-              options={clients}
-              getOptionLabel={(opt) => `${opt.name} (${opt.company_name})`}
-              value={selectedClient}
-              onChange={(e, v) => {
-                setSelectedClient(v)
-                if (v && !editingShipment) {
-                  setFormData({ ...formData, client_id: v.id, consignee_name: v.name || '', consignee_email: v.email || '', consignee_phone: v.telephone || '' })
-                }
-              }}
-              disabled={!!editingShipment}
-              renderInput={(p) => <TextField {...p} label="Client Entity" required />}
-            />
-          </Grid>
+          {editingShipment && !editingShipment.client_id && (
+            <Grid item xs={12}>
+              <Alert severity="info" sx={{ borderRadius: 2 }}>
+                Walk-in mission — not linked to a registered client account ({formData.external_client_name || 'external contact'}).
+              </Alert>
+            </Grid>
+          )}
+
+          {editingShipment?.client_id ? (
+            <Grid item xs={12}>
+              <Autocomplete
+                options={clients}
+                getOptionLabel={(opt) => `${opt.name} (${opt.company_name})`}
+                value={selectedClient}
+                disabled
+                renderInput={(p) => <TextField {...p} label="Client entity" />}
+              />
+            </Grid>
+          ) : editingShipment ? (
+            <>
+              <Grid item xs={12} sm={6}>
+                <FormTextField
+                  label="Client / account name"
+                  value={formData.external_client_name}
+                  disabled
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <FormTextField
+                  label="Company (optional)"
+                  value={formData.external_client_company}
+                  disabled
+                />
+              </Grid>
+            </>
+          ) : null}
+
           <Grid item xs={12} sm={6}>
             <FormSelect
               label="Departure Depot"
@@ -747,9 +790,54 @@ const Shipments = () => {
               required
             />
           </Grid>
-          <Grid item xs={12} sm={6}><FormTextField label="Consignee Name" value={formData.consignee_name} onChange={(e) => setFormData({ ...formData, consignee_name: e.target.value })} required /></Grid>
-          <Grid item xs={12} sm={6}><FormTextField label="Consignee Phone" value={formData.consignee_phone} onChange={(e) => setFormData({ ...formData, consignee_phone: e.target.value })} /></Grid>
-          <Grid item xs={12}><FormTextField label="Mission Cargo Details" multiline rows={3} value={formData.cargo_description} onChange={(e) => setFormData({ ...formData, cargo_description: e.target.value })} required /></Grid>
+          <Grid item xs={12} sm={6}>
+            <FormTextField
+              label="Shipper name (optional)"
+              value={formData.shipper_name}
+              onChange={(e) => setFormData({ ...formData, shipper_name: e.target.value })}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormTextField
+              label="Container number"
+              value={formData.container_number}
+              onChange={(e) => setFormData({ ...formData, container_number: e.target.value })}
+              placeholder="e.g. MSKU1234567"
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormTextField
+              label="Consignee Name"
+              value={formData.consignee_name}
+              onChange={(e) => setFormData({ ...formData, consignee_name: e.target.value })}
+              required
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormTextField
+              label="Consignee Phone"
+              value={formData.consignee_phone}
+              onChange={(e) => setFormData({ ...formData, consignee_phone: e.target.value })}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormTextField
+              label="Consignee Email"
+              type="email"
+              value={formData.consignee_email}
+              onChange={(e) => setFormData({ ...formData, consignee_email: e.target.value })}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <FormTextField
+              label="Mission Cargo Details"
+              multiline
+              rows={3}
+              value={formData.cargo_description}
+              onChange={(e) => setFormData({ ...formData, cargo_description: e.target.value })}
+              required
+            />
+          </Grid>
         </Grid>
       </FormDialog>
 

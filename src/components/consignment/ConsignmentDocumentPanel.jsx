@@ -93,9 +93,9 @@ export default function ConsignmentDocumentPanel({
         Upload required operational documents. For additional files, use Other Documents — each needs its own title.
       </Alert>
 
-      {clientMissing && canUpload && (
-        <Alert severity="warning" sx={{ borderRadius: 2 }}>
-          This consignment has no linked client — document upload is unavailable.
+      {clientMissing && (
+        <Alert severity="info" sx={{ borderRadius: 2 }}>
+          This mission is not linked to a client portal account. Documents are stored on the consignment only.
         </Alert>
       )}
 
@@ -187,7 +187,7 @@ export default function ConsignmentDocumentPanel({
                     size="small"
                     variant="contained"
                     component="label"
-                    disabled={busy || clientMissing}
+                    disabled={busy}
                     startIcon={
                       busy ? <CircularProgress size={14} color="inherit" /> : <CloudUpload />
                     }
@@ -233,7 +233,6 @@ export default function ConsignmentDocumentPanel({
               variant="contained"
               startIcon={<CloudUpload />}
               onClick={openOtherDialog}
-              disabled={clientMissing}
               sx={{ fontWeight: 800 }}
             >
               Add other document

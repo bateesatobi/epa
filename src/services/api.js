@@ -315,6 +315,12 @@ export const shipmentsAPI = {
     })
     return response.data
   },
+  linkClient: async (shipmentId, clientId) => {
+    const response = await api.patch(`/api/shipments/${shipmentId}/link-client`, {
+      client_id: clientId,
+    })
+    return response.data
+  },
 }
 
 // Compliance API
@@ -354,6 +360,10 @@ export const complianceAPI = {
   uploadDocumentForClient: async (clientId, documentData, shipmentId = null) => {
     const params = shipmentId ? { shipment_id: shipmentId } : {}
     const response = await api.post(`/api/compliance/clients/${clientId}/documents`, documentData, { params })
+    return response.data
+  },
+  uploadDocumentForShipment: async (shipmentId, documentData) => {
+    const response = await api.post(`/api/compliance/shipments/${shipmentId}/documents`, documentData)
     return response.data
   },
   // Attach document to shipment
@@ -632,6 +642,14 @@ export const clientsAPI = {
   },
   resetPassword: async (clientId, data) => {
     const response = await api.patch(`/api/clients/${clientId}/reset-password`, data)
+    return response.data
+  },
+  getWalkInShipments: async (clientId) => {
+    const response = await api.get(`/api/clients/${clientId}/walk-in-shipments`)
+    return response.data
+  },
+  linkWalkInShipments: async (clientId, data) => {
+    const response = await api.post(`/api/clients/${clientId}/link-walk-in-shipments`, data)
     return response.data
   },
 }
