@@ -21,14 +21,49 @@ export function useMyAssignments(options = {}) {
   })
 }
 
-export function uniqueConsignmentsFromAssignments(assignments = []) {
+export function isAssignmentActive(assignment) {
+  const s = String(assignment?.status || '').toLowerCase()
+  return s !== 'completed' && s !== 'cancelled'
+}
+
+export function groupConsignmentsFromAssignments(assignments = []) {
   const map = new Map()
   for (const item of assignments) {
     const id = item.shipment_id || item.id
-    if (!id || map.has(id)) continue
-    map.set(id, item)
+    if (!id) continue
+    const existing = map.get(id)
+    if (!existing) {
+      map.set(id, { ...item, shipment_id: id, activities: [item] })
+      continue
+    }
+    existing.activities.push(item)
+    const existingAt = new Date(existing.assigned_at || 0).getTime()
+    const nextAt = new Date(item.assigned_at || 0).getTime()
+    if (nextAt >= existingAt) {
+      const activities = existing.activities
+      Object.assign(existing, item, { shipment_id: id, activities })
+    }
   }
-  return Array.from(map.values())
+
+  return Array.from(map.values()).map((consignment) => {
+    const activities = consignment.activities || []
+    const activityNames = [
+      ...new Set(
+        activities
+          .map((a) => a.clearance_activity_name || a.activity_name)
+          .filter(Boolean)
+      ),
+    ]
+    return {
+      ...consignment,
+      hasActive: activities.some(isAssignmentActive),
+      activity_names: activityNames,
+    }
+  })
+}
+
+export function uniqueConsignmentsFromAssignments(assignments = []) {
+  return groupConsignmentsFromAssignments(assignments)
 }
 
 export function statusColor(status) {

@@ -10,48 +10,160 @@ import {
   InputAdornment,
   CircularProgress,
   Button,
+  Tabs,
+  Tab,
 } from '@mui/material'
-import { Search, LocalShipping } from '@mui/icons-material'
+import { Search, LocalShipping, History, Assignment } from '@mui/icons-material'
+import { format } from 'date-fns'
 import FieldStaffPageHeader from '../../components/fieldstaff/FieldStaffPageHeader'
 import {
   useMyAssignments,
-  uniqueConsignmentsFromAssignments,
+  groupConsignmentsFromAssignments,
   statusColor,
   formatStatusLabel,
 } from '../../hooks/useFieldStaff'
 
+function matchesSearch(row, query) {
+  if (!query) return true
+  const hay = [
+    row.shipment_number,
+    row.origin,
+    row.destination,
+    row.consignee_name,
+    row.container_number,
+    row.status,
+    row.shipment_status,
+    ...(row.activity_names || []),
+    row.clearance_activity_name,
+    row.activity_name,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+  return hay.includes(query)
+}
+
+function ConsignmentRow({ row, onOpen }) {
+  const shipmentId = row.shipment_id || row.id
+  const missionStatus = row.shipment_status || null
+  const latestDate = row.completed_at || row.assigned_at
+
+  return (
+    <Paper
+      elevation={0}
+      onClick={() => onOpen(shipmentId)}
+      sx={{
+        p: 2.5,
+        borderRadius: 3,
+        border: '1px solid',
+        borderColor: 'divider',
+        cursor: 'pointer',
+        '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
+      }}
+    >
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        spacing={1.5}
+        alignItems={{ sm: 'center' }}
+      >
+        <Box sx={{ minWidth: 0, flex: 1 }}>
+          <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
+            <Typography variant="subtitle1" fontWeight={800}>
+              {row.shipment_number || `Shipment #${shipmentId}`}
+            </Typography>
+            <Chip
+              size="small"
+              label={row.hasActive ? 'Current' : 'History'}
+              color={row.hasActive ? 'info' : 'default'}
+              sx={{ fontWeight: 800 }}
+            />
+            <Chip
+              size="small"
+              label={formatStatusLabel(row.status)}
+              color={statusColor(row.status)}
+              sx={{ fontWeight: 800, textTransform: 'capitalize' }}
+            />
+            {missionStatus && String(missionStatus).toLowerCase() !== String(row.status || '').toLowerCase() ? (
+              <Chip
+                size="small"
+                variant="outlined"
+                label={`Mission ${formatStatusLabel(missionStatus)}`}
+                sx={{ fontWeight: 700, textTransform: 'capitalize' }}
+              />
+            ) : null}
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+            {(row.origin || '—') + ' → ' + (row.destination || '—')}
+          </Typography>
+          <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
+            Container: {row.container_number || '—'}
+          </Typography>
+          {row.consignee_name ? (
+            <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
+              {row.consignee_name}
+            </Typography>
+          ) : null}
+          {(row.activity_names || []).length > 0 ? (
+            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+              {(row.activity_names || []).map((name) => (
+                <Chip key={name} size="small" variant="outlined" label={name} sx={{ fontWeight: 700 }} />
+              ))}
+            </Stack>
+          ) : null}
+          {latestDate ? (
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
+              {row.hasActive ? 'Assigned' : 'Last activity'}{' '}
+              {format(new Date(latestDate), 'MMM dd, yyyy')}
+            </Typography>
+          ) : null}
+        </Box>
+        <Button
+          variant="contained"
+          onClick={(e) => {
+            e.stopPropagation()
+            onOpen(shipmentId)
+          }}
+          sx={{ fontWeight: 700 }}
+        >
+          Open workspace
+        </Button>
+      </Stack>
+    </Paper>
+  )
+}
+
 export default function FieldStaffConsignments() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const [tab, setTab] = useState('current')
   const { data: assignments = [], isLoading, refetch, isFetching } = useMyAssignments()
 
   const consignments = useMemo(
-    () => uniqueConsignmentsFromAssignments(assignments),
+    () => groupConsignmentsFromAssignments(assignments),
     [assignments]
   )
 
+  const current = useMemo(() => consignments.filter((c) => c.hasActive), [consignments])
+  const history = useMemo(() => consignments.filter((c) => !c.hasActive), [consignments])
+
+  const visible = tab === 'current' ? current : tab === 'history' ? history : consignments
+
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return consignments
-    return consignments.filter((a) => {
-      const hay = [a.shipment_number, a.origin, a.destination, a.consignee_name, a.container_number, a.status]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-      return hay.includes(q)
-    })
-  }, [consignments, search])
+    return visible.filter((row) => matchesSearch(row, q))
+  }, [visible, search])
 
-  const workspacePath = (shipmentId) =>
-    `/dashboard/field-staff/consignments/${shipmentId}`
+  const workspacePath = (shipmentId) => `/dashboard/field-staff/consignments/${shipmentId}`
+  const openWorkspace = (shipmentId) => navigate(workspacePath(shipmentId))
 
   return (
     <Box sx={{ pb: 4 }}>
       <FieldStaffPageHeader
         showBack
         title="Consignments"
-        subtitle="Consignments linked to your clearance assignments — open one to work timeline, documents, and queries."
-        chipLabel={`${filtered.length} consignments`}
+        subtitle="Current assignments and history of consignments you have worked on."
+        chipLabel={`${filtered.length} shown`}
       />
 
       <Paper
@@ -61,7 +173,7 @@ export default function FieldStaffConsignments() {
         <TextField
           fullWidth
           size="small"
-          placeholder="Search shipment #, container, route, consignee…"
+          placeholder="Search shipment #, container, route, consignee, activity…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           InputProps={{
@@ -72,6 +184,40 @@ export default function FieldStaffConsignments() {
             ),
           }}
         />
+      </Paper>
+
+      <Paper
+        elevation={0}
+        sx={{ mb: 2, borderRadius: 3, border: '1px solid', borderColor: 'divider' }}
+      >
+        <Tabs
+          value={tab}
+          onChange={(_, value) => setTab(value)}
+          variant="fullWidth"
+          sx={{ minHeight: 52 }}
+        >
+          <Tab
+            value="current"
+            icon={<Assignment fontSize="small" />}
+            iconPosition="start"
+            label={`Current (${current.length})`}
+            sx={{ fontWeight: 800, textTransform: 'none' }}
+          />
+          <Tab
+            value="history"
+            icon={<History fontSize="small" />}
+            iconPosition="start"
+            label={`History (${history.length})`}
+            sx={{ fontWeight: 800, textTransform: 'none' }}
+          />
+          <Tab
+            value="all"
+            icon={<LocalShipping fontSize="small" />}
+            iconPosition="start"
+            label={`All (${consignments.length})`}
+            sx={{ fontWeight: 800, textTransform: 'none' }}
+          />
+        </Tabs>
       </Paper>
 
       {isLoading ? (
@@ -91,10 +237,14 @@ export default function FieldStaffConsignments() {
         >
           <LocalShipping sx={{ fontSize: 48, color: 'text.disabled', mb: 1 }} />
           <Typography variant="h6" fontWeight={700}>
-            No consignments
+            {search ? 'No matching consignments' : tab === 'history' ? 'No history yet' : 'No current consignments'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            No consignments found from your assignments.
+            {search
+              ? 'Try a different search term.'
+              : tab === 'history'
+                ? 'Completed consignments you have worked on will appear here.'
+                : 'Consignments currently assigned to you will appear here.'}
           </Typography>
           <Button sx={{ mt: 2, fontWeight: 700 }} onClick={() => refetch()} disabled={isFetching}>
             Refresh
@@ -102,71 +252,9 @@ export default function FieldStaffConsignments() {
         </Paper>
       ) : (
         <Stack spacing={1.5}>
-          {filtered.map((row) => {
-            const shipmentId = row.shipment_id || row.id
-            return (
-              <Paper
-                key={shipmentId}
-                elevation={0}
-                onClick={() => navigate(workspacePath(shipmentId))}
-                sx={{
-                  p: 2.5,
-                  borderRadius: 3,
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  cursor: 'pointer',
-                  '&:hover': { borderColor: 'primary.main', bgcolor: 'action.hover' },
-                }}
-              >
-                <Stack
-                  direction={{ xs: 'column', sm: 'row' }}
-                  justifyContent="space-between"
-                  spacing={1.5}
-                  alignItems={{ sm: 'center' }}
-                >
-                  <Box>
-                    <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
-                      <Typography variant="subtitle1" fontWeight={800}>
-                        {row.shipment_number || `Shipment #${shipmentId}`}
-                      </Typography>
-                      <Chip
-                        size="small"
-                        label={formatStatusLabel(row.status)}
-                        color={statusColor(row.status)}
-                        sx={{ fontWeight: 800, textTransform: 'capitalize' }}
-                      />
-                    </Stack>
-                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-                      {(row.origin || '—') + ' → ' + (row.destination || '—')}
-                    </Typography>
-                    <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
-                      Container: {row.container_number || '—'}
-                    </Typography>
-                    {row.consignee_name && (
-                      <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
-                        {row.consignee_name}
-                      </Typography>
-                    )}
-                    {(row.clearance_activity_name || row.activity_name) && (
-                      <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                        Activity: {row.clearance_activity_name || row.activity_name}
-                      </Typography>
-                    )}
-                  </Box>
-                  <Button
-                    variant="contained"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      navigate(workspacePath(shipmentId))
-                    }}
-                    sx={{ fontWeight: 700 }}
-                  >
-                    Open workspace
-                  </Button>
-                </Stack>
-              </Paper>
-            )
-          })}
+          {filtered.map((row) => (
+            <ConsignmentRow key={row.shipment_id || row.id} row={row} onOpen={openWorkspace} />
+          ))}
         </Stack>
       )}
     </Box>
