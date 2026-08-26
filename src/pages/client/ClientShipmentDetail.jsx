@@ -156,6 +156,7 @@ export default function ClientShipmentDetail() {
         </Stack>
         <Typography sx={{ mt: 1, opacity: 0.9 }}>
           {shipment?.origin} → {shipment?.destination}
+          {shipment?.container_number ? ` · Container ${shipment.container_number}` : ''}
         </Typography>
       </Box>
 

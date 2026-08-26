@@ -90,6 +90,7 @@ export default function ClientMyRequests({ basePath = '/client/consignments' }) 
               <TableRow>
                 <TableCell>Request #</TableCell>
                 <TableCell>Route</TableCell>
+                <TableCell>Container</TableCell>
                 <TableCell>Expected arrival</TableCell>
                 <TableCell>Countdown</TableCell>
                 <TableCell>Status</TableCell>
@@ -107,6 +108,7 @@ export default function ClientMyRequests({ basePath = '/client/consignments' }) 
                 >
                   <TableCell>{r.request_number}</TableCell>
                   <TableCell>{r.origin} → {r.destination}</TableCell>
+                  <TableCell>{r.container_number || '—'}</TableCell>
                   <TableCell>{format(new Date(r.expected_arrival_date), 'MMM dd, yyyy')}</TableCell>
                   <TableCell>{Countdown(r.days_until_arrival)}</TableCell>
                   <TableCell>

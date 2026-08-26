@@ -174,8 +174,11 @@ export default function ConsignmentRequestDetailDialog({
           <Grid item xs={12} sm={6}>
             <DetailItem icon={Phone} label="Consignee phone" value={request.consignee_phone} />
           </Grid>
+          <Grid item xs={12} sm={6}>
+            <DetailItem icon={Inventory2} label="Container number" value={request.container_number} />
+          </Grid>
           <Grid item xs={12}>
-            <DetailItem icon={Inventory2} label="Cargo description" value={request.cargo_description} />
+            <DetailItem icon={Description} label="Cargo description" value={request.cargo_description} />
           </Grid>
         </Grid>
       </Paper>

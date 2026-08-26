@@ -149,6 +149,7 @@ export default function ClientRequestDetail({ basePath = '/client/consignments' 
             )}
           </Typography>
           <Typography><strong>Consignee:</strong> {request.consignee_name}{request.consignee_phone ? ` (${request.consignee_phone})` : ''}</Typography>
+          <Typography><strong>Container:</strong> {request.container_number || '—'}</Typography>
           <Typography><strong>Cargo:</strong> {request.cargo_description}</Typography>
         </Stack>
 

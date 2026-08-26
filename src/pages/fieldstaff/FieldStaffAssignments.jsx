@@ -36,6 +36,7 @@ export default function FieldStaffAssignments() {
         a.origin,
         a.destination,
         a.consignee_name,
+        a.container_number,
         a.clearance_activity_name || a.activity_name,
         a.status,
       ]
@@ -65,7 +66,7 @@ export default function FieldStaffAssignments() {
         <TextField
           fullWidth
           size="small"
-          placeholder="Search shipment #, route, activity, consignee…"
+          placeholder="Search shipment #, container, route, activity, consignee…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           InputProps={{
@@ -142,6 +143,9 @@ export default function FieldStaffAssignments() {
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                       {(row.origin || '—') + ' → ' + (row.destination || '—')}
                       {row.consignee_name ? ` · ${row.consignee_name}` : ''}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
+                      Container: {row.container_number || '—'}
                     </Typography>
                     <Typography variant="body2" fontWeight={700} sx={{ mt: 1 }}>
                       {row.clearance_activity_name || row.activity_name || 'Clearance activity'}

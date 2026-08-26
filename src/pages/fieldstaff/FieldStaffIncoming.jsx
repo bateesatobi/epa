@@ -48,6 +48,7 @@ export default function FieldStaffIncoming() {
         r.client_name,
         r.client_company,
         r.consignee_name,
+        r.container_number,
         r.status,
       ]
         .filter(Boolean)
@@ -106,7 +107,7 @@ export default function FieldStaffIncoming() {
         <TextField
           fullWidth
           size="small"
-          placeholder="Search request #, client, route…"
+          placeholder="Search request #, container, client, route…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           InputProps={{
@@ -189,6 +190,9 @@ export default function FieldStaffIncoming() {
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {(row.origin || '—') + ' → ' + (row.destination || '—')}
+                  </Typography>
+                  <Typography variant="body2" fontWeight={600}>
+                    Container: {row.container_number || '—'}
                   </Typography>
                   {row.expected_arrival_date && (
                     <Typography variant="caption" color="text.disabled">

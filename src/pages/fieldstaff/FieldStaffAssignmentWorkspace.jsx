@@ -386,8 +386,8 @@ export default function FieldStaffAssignmentWorkspace() {
         backTo="/dashboard/field-staff/assignments"
         title={shipment.shipment_number || `Consignment #${shipmentId}`}
         subtitle={`${shipment.origin || '—'} → ${shipment.destination || '—'}${
-          shipment.consignee_name ? ` · ${shipment.consignee_name}` : ''
-        }`}
+          shipment.container_number ? ` · Container ${shipment.container_number}` : ''
+        }${shipment.consignee_name ? ` · ${shipment.consignee_name}` : ''}`}
         chipLabel={formatStatusLabel(shipment.status)}
         action={
           <Button
@@ -457,6 +457,9 @@ export default function FieldStaffAssignmentWorkspace() {
                   <Grid item xs={12} sm={6}>
                     <InfoRow label="Destination" value={shipment.destination} />
                   </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <InfoRow label="Container number" value={shipment.container_number} />
+                  </Grid>
                   <Grid item xs={12}>
                     <InfoRow label="Route" value={shipment.route} />
                   </Grid>
@@ -497,9 +500,6 @@ export default function FieldStaffAssignmentWorkspace() {
                   Cargo
                 </Typography>
                 <Grid container spacing={2.5}>
-                  <Grid item xs={12} sm={6}>
-                    <InfoRow label="Container number" value={shipment.container_number} />
-                  </Grid>
                   <Grid item xs={12} sm={6}>
                     <InfoRow
                       label="Estimated delivery"

@@ -152,6 +152,7 @@ export default function FieldStaffUpdateStatus() {
                 {assignments.map((a) => (
                   <MenuItem key={a.id} value={String(a.id)}>
                     {(a.shipment_number || `Shipment #${a.shipment_id}`) +
+                      (a.container_number ? ` · ${a.container_number}` : '') +
                       ' — ' +
                       (a.clearance_activity_name || a.activity_name || 'Activity')}
                   </MenuItem>
@@ -169,6 +170,11 @@ export default function FieldStaffUpdateStatus() {
                 />
                 <Chip
                   label={(selected.origin || '—') + ' → ' + (selected.destination || '—')}
+                  size="small"
+                  variant="outlined"
+                />
+                <Chip
+                  label={`Container ${selected.container_number || '—'}`}
                   size="small"
                   variant="outlined"
                 />

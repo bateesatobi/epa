@@ -36,7 +36,8 @@ export default function ClientConsignments() {
       !search ||
       s.shipment_number?.toLowerCase().includes(search.toLowerCase()) ||
       s.origin?.toLowerCase().includes(search.toLowerCase()) ||
-      s.destination?.toLowerCase().includes(search.toLowerCase())
+      s.destination?.toLowerCase().includes(search.toLowerCase()) ||
+      s.container_number?.toLowerCase().includes(search.toLowerCase())
   )
 
   if (loading) {
@@ -71,7 +72,7 @@ export default function ClientConsignments() {
 
       <TextField
         fullWidth
-        placeholder="Search by ID, origin, or destination..."
+        placeholder="Search by ID, container, origin, or destination..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         sx={{ mb: 3 }}
@@ -107,13 +108,16 @@ export default function ClientConsignments() {
                         sx={{ fontWeight: 700, textTransform: 'capitalize' }}
                       />
                     </Stack>
-                    <Stack direction="row" spacing={1} alignItems="center" color="text.secondary" mb={2}>
+                    <Stack direction="row" spacing={1} alignItems="center" color="text.secondary" mb={1}>
                       <FlightTakeoff fontSize="small" />
                       <Typography variant="body2">{s.origin || '—'}</Typography>
                       <ArrowForward fontSize="small" />
                       <FlightLand fontSize="small" />
                       <Typography variant="body2">{s.destination || '—'}</Typography>
                     </Stack>
+                    <Typography variant="body2" fontWeight={600} color="text.secondary" mb={2}>
+                      Container {s.container_number || '—'}
+                    </Typography>
                     <Typography variant="caption" color="primary" fontWeight={600}>
                       View details →
                     </Typography>

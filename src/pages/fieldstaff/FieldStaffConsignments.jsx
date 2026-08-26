@@ -34,7 +34,7 @@ export default function FieldStaffConsignments() {
     const q = search.trim().toLowerCase()
     if (!q) return consignments
     return consignments.filter((a) => {
-      const hay = [a.shipment_number, a.origin, a.destination, a.consignee_name, a.status]
+      const hay = [a.shipment_number, a.origin, a.destination, a.consignee_name, a.container_number, a.status]
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
@@ -61,7 +61,7 @@ export default function FieldStaffConsignments() {
         <TextField
           fullWidth
           size="small"
-          placeholder="Search shipment #, route, consignee…"
+          placeholder="Search shipment #, container, route, consignee…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           InputProps={{
@@ -138,6 +138,9 @@ export default function FieldStaffConsignments() {
                     </Stack>
                     <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                       {(row.origin || '—') + ' → ' + (row.destination || '—')}
+                    </Typography>
+                    <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
+                      Container: {row.container_number || '—'}
                     </Typography>
                     {row.consignee_name && (
                       <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>

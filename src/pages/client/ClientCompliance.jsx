@@ -108,6 +108,9 @@ export default function ClientCompliance() {
                     <Typography fontWeight={700}>{s.shipment_number}</Typography>
                     <Chip label={`${progress}%`} size="small" color={progress === 100 ? 'success' : 'warning'} />
                   </Stack>
+                  <Typography variant="body2" color="text.secondary" mb={1}>
+                    Container {s.container_number || '—'}
+                  </Typography>
                   <LinearProgress variant="determinate" value={progress} sx={{ mb: 2, borderRadius: 1, height: 8 }} />
                   <Typography variant="body2" color="text.secondary" mb={2}>
                     {docs.length} document{docs.length !== 1 ? 's' : ''} uploaded

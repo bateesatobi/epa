@@ -664,6 +664,15 @@ const Shipments = () => {
             },
             { field: 'origin', headerName: 'Origin' },
             { field: 'destination', headerName: 'Terminal' },
+            {
+              field: 'container_number',
+              headerName: 'Container',
+              render: (row) => (
+                <Typography variant="body2" fontWeight={600}>
+                  {row.container_number || '—'}
+                </Typography>
+              ),
+            },
             { field: 'consignee_name', headerName: 'Consignee' },
             {
               field: 'created_at',

@@ -42,6 +42,7 @@ export default function ClientRequestConsignment({ basePath = '/client/consignme
     expected_arrival_date: '',
     consignee_name: '',
     consignee_phone: '',
+    container_number: '',
     cargo_description: '',
   })
   const [docs, setDocs] = useState([emptyDoc()])
@@ -165,6 +166,13 @@ export default function ClientRequestConsignment({ basePath = '/client/consignme
             value={form.consignee_phone}
             fullWidth
             InputProps={{ readOnly: true }}
+          />
+          <TextField
+            label="Container number"
+            value={form.container_number}
+            onChange={(e) => setForm({ ...form, container_number: e.target.value })}
+            placeholder="e.g. MSKU1234567"
+            fullWidth
           />
           <TextField
             label="Cargo description"

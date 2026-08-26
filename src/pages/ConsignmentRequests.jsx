@@ -249,6 +249,17 @@ export default function ConsignmentRequests() {
         ),
       },
       {
+        field: 'container_number',
+        label: 'Container',
+        minWidth: 140,
+        accessor: (row) => row.container_number,
+        render: (row) => (
+          <Typography variant="body2" fontWeight={600}>
+            {row.container_number || '—'}
+          </Typography>
+        ),
+      },
+      {
         field: 'created_at',
         label: 'Date',
         minWidth: 120,

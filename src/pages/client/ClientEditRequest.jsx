@@ -55,6 +55,7 @@ export default function ClientEditRequest({ basePath = '/client/consignments' })
         expected_arrival_date: request.expected_arrival_date,
         consignee_name: request.consignee_name,
         consignee_phone: request.consignee_phone || '',
+        container_number: request.container_number || '',
         cargo_description: request.cargo_description,
       })
     }
@@ -159,6 +160,13 @@ export default function ClientEditRequest({ basePath = '/client/consignments' })
           />
           <TextField label="Consignee name" value={form.consignee_name} fullWidth InputProps={{ readOnly: true }} />
           <TextField label="Consignee phone" value={form.consignee_phone} fullWidth InputProps={{ readOnly: true }} />
+          <TextField
+            label="Container number"
+            value={form.container_number}
+            onChange={(e) => setForm({ ...form, container_number: e.target.value })}
+            placeholder="e.g. MSKU1234567"
+            fullWidth
+          />
           <TextField label="Cargo description" multiline minRows={3} value={form.cargo_description} onChange={(e) => setForm({ ...form, cargo_description: e.target.value })} fullWidth />
 
           <Typography variant="subtitle1" fontWeight={700}>Existing documents</Typography>
