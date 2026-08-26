@@ -16,6 +16,7 @@ import {
 import { Search, ArrowForward, FlightTakeoff, FlightLand } from '@mui/icons-material'
 import { clientPortalAPI } from '../../services/clientPortalApi'
 import { formatShipmentStatusLabel, shipmentStatusChipColor } from '../../utils/shipmentStatus'
+import { ArrivalMeta } from '../../components/consignment/ArrivalCountdownChip'
 
 export default function ClientConsignments() {
   const navigate = useNavigate()
@@ -115,9 +116,10 @@ export default function ClientConsignments() {
                       <FlightLand fontSize="small" />
                       <Typography variant="body2">{s.destination || '—'}</Typography>
                     </Stack>
-                    <Typography variant="body2" fontWeight={600} color="text.secondary" mb={2}>
+                    <Typography variant="body2" fontWeight={600} color="text.secondary" mb={1}>
                       Container {s.container_number || '—'}
                     </Typography>
+                    <ArrivalMeta date={s.estimated_delivery_date} status={s.status} sx={{ mb: 2 }} />
                     <Typography variant="caption" color="primary" fontWeight={600}>
                       View details →
                     </Typography>

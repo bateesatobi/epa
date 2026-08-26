@@ -52,6 +52,8 @@ import {
 import DocumentPreviewDialog from '../../components/portal/DocumentPreviewDialog'
 import { downloadConsignmentReport } from '../../utils/consignmentReport'
 import { isMissionClosed, isMissionTerminal } from '../../utils/shipmentStatus'
+import ArrivalCountdownChip from '../../components/consignment/ArrivalCountdownChip'
+import { formatArrivalDate } from '../../utils/arrivalCountdown'
 
 const REQUIRED_DOC_TYPES = [
   { value: 't1_document', label: 'T1 Document' },
@@ -79,6 +81,7 @@ function fileToBase64(file) {
 }
 
 function InfoRow({ label, value }) {
+  const empty = value == null || value === ''
   return (
     <Box>
       <Typography
@@ -89,9 +92,13 @@ function InfoRow({ label, value }) {
       >
         {label.toUpperCase()}
       </Typography>
-      <Typography variant="body2" fontWeight={600} sx={{ mt: 0.25, wordBreak: 'break-word' }}>
-        {value || '—'}
-      </Typography>
+      {React.isValidElement(value) ? (
+        <Box sx={{ mt: 0.5 }}>{value}</Box>
+      ) : (
+        <Typography variant="body2" fontWeight={600} sx={{ mt: 0.25, wordBreak: 'break-word' }}>
+          {empty ? '—' : value}
+        </Typography>
+      )}
     </Box>
   )
 }
@@ -387,7 +394,11 @@ export default function FieldStaffAssignmentWorkspace() {
         title={shipment.shipment_number || `Consignment #${shipmentId}`}
         subtitle={`${shipment.origin || '—'} → ${shipment.destination || '—'}${
           shipment.container_number ? ` · Container ${shipment.container_number}` : ''
-        }${shipment.consignee_name ? ` · ${shipment.consignee_name}` : ''}`}
+        }${shipment.consignee_name ? ` · ${shipment.consignee_name}` : ''}${
+          shipment.estimated_delivery_date
+            ? ` · Arrival ${formatArrivalDate(shipment.estimated_delivery_date)}`
+            : ''
+        }`}
         chipLabel={formatStatusLabel(shipment.status)}
         action={
           <Button
@@ -502,11 +513,18 @@ export default function FieldStaffAssignmentWorkspace() {
                 <Grid container spacing={2.5}>
                   <Grid item xs={12} sm={6}>
                     <InfoRow
-                      label="Estimated delivery"
+                      label="Date of arrival"
+                      value={formatArrivalDate(shipment.estimated_delivery_date)}
+                    />
+                  </Grid>
+                  <Grid item xs={12} sm={6}>
+                    <InfoRow
+                      label="Countdown"
                       value={
-                        shipment.estimated_delivery_date
-                          ? format(new Date(shipment.estimated_delivery_date), 'MMM dd, yyyy')
-                          : null
+                        <ArrivalCountdownChip
+                          date={shipment.estimated_delivery_date}
+                          status={shipment.status}
+                        />
                       }
                     />
                   </Grid>

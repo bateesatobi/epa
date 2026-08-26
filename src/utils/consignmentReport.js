@@ -61,7 +61,7 @@ function infoRows(shipment) {
         ? `UGX ${Number(shipment.estimated_cost).toLocaleString()}`
         : '',
     ],
-    ['Estimated delivery', fmtDate(shipment.estimated_delivery_date)],
+    ['Date of arrival', fmtDate(shipment.estimated_delivery_date)],
     ['Created', fmtDate(shipment.created_at, true)],
     ['Updated', fmtDate(shipment.updated_at, true)],
     ['Closed', fmtDate(shipment.closed_at, true)],

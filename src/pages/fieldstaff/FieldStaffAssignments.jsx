@@ -19,6 +19,7 @@ import {
   statusColor,
   formatStatusLabel,
 } from '../../hooks/useFieldStaff'
+import { ArrivalMeta } from '../../components/consignment/ArrivalCountdownChip'
 
 export default function FieldStaffAssignments() {
   const navigate = useNavigate()
@@ -147,6 +148,11 @@ export default function FieldStaffAssignments() {
                     <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
                       Container: {row.container_number || '—'}
                     </Typography>
+                    <ArrivalMeta
+                      date={row.estimated_delivery_date}
+                      status={row.shipment_status || row.status}
+                      sx={{ mt: 0.5 }}
+                    />
                     <Typography variant="body2" fontWeight={700} sx={{ mt: 1 }}>
                       {row.clearance_activity_name || row.activity_name || 'Clearance activity'}
                     </Typography>

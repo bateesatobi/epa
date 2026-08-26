@@ -80,6 +80,8 @@ import ResourceAlertBadges from '../components/ResourceAlertBadges'
 import { useUnreadNotifications } from '../hooks/useNotifications'
 import { indexResourceAlerts } from '../utils/notificationNavigation'
 import { downloadConsignmentReport } from '../utils/consignmentReport'
+import ArrivalCountdownChip from '../components/consignment/ArrivalCountdownChip'
+import { formatArrivalDate } from '../utils/arrivalCountdown'
 import {
   formatShipmentStatusLabel,
   isMissionClosed,
@@ -681,6 +683,11 @@ const ShipmentDetail = () => {
     { label: 'Consignee Email', value: shipment.consignee_email || '—', icon: <MailOutline fontSize="small" /> },
     { label: 'Consignee Phone', value: shipment.consignee_phone || '—', icon: <Phone fontSize="small" /> },
     { label: 'Container Number', value: shipment.container_number || '—', icon: <Inventory2 fontSize="small" /> },
+    {
+      label: 'Date of Arrival',
+      value: formatArrivalDate(shipment.estimated_delivery_date),
+      icon: <EventAvailable fontSize="small" />,
+    },
     { label: 'Cargo Description', value: shipment.cargo_description || '—', icon: <Description fontSize="small" /> },
     {
       label: 'Estimated Cost',
@@ -766,6 +773,7 @@ const ShipmentDetail = () => {
                 borderColor: 'divider'
               }}
             />
+            <ArrivalCountdownChip date={shipment.estimated_delivery_date} status={shipment.status} />
             {isAdmin && !isMissionTerminal(shipment.status) && (
               <Button
                 variant="contained"
@@ -987,7 +995,7 @@ const ShipmentDetail = () => {
                 <Description sx={{ color: '#01A3DA' }} /> MISSION SPECIFICATIONS
               </Typography>
               <Grid container spacing={3}>
-                {detailItems.slice(0, 14).map((item, idx) => (
+                {detailItems.slice(0, 16).map((item, idx) => (
                   <Grid item xs={12} sm={6} key={idx}>
                     <Box sx={{ p: 2, borderRadius: 2, bgcolor: '#F8F9FA', border: '1px solid transparent', '&:hover': { borderColor: 'divider', bgcolor: '#FFF' }, transition: 'all 0.2s' }}>
                       <Typography variant="caption" color="text.secondary" fontWeight={700} sx={{ textTransform: 'uppercase', letterSpacing: 1, display: 'block', mb: 1 }}>

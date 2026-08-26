@@ -26,6 +26,7 @@ import {
   formatStatusLabel,
 } from '../../hooks/useFieldStaff'
 import { shipmentsAPI, clearanceActivitiesAPI } from '../../services/api'
+import ArrivalCountdownChip from '../../components/consignment/ArrivalCountdownChip'
 
 const STATUS_OPTIONS = [
   { label: 'Pending', value: 'pending' },
@@ -177,6 +178,10 @@ export default function FieldStaffUpdateStatus() {
                   label={`Container ${selected.container_number || '—'}`}
                   size="small"
                   variant="outlined"
+                />
+                <ArrivalCountdownChip
+                  date={selected.estimated_delivery_date}
+                  status={selected.shipment_status || selected.status}
                 />
               </Stack>
             )}

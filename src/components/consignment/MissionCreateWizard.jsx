@@ -47,6 +47,7 @@ const emptyForm = () => ({
   consignee_phone: '',
   container_number: '',
   cargo_description: '',
+  estimated_delivery_date: '',
   estimated_cost: '',
 })
 
@@ -102,6 +103,9 @@ export default function MissionCreateWizard({ open, onClose, onComplete, clients
     if (formData.consignee_email?.trim()) payload.consignee_email = formData.consignee_email.trim()
     if (formData.consignee_phone?.trim()) payload.consignee_phone = formData.consignee_phone.trim()
     if (formData.container_number?.trim()) payload.container_number = formData.container_number.trim()
+    if (formData.estimated_delivery_date?.trim()) {
+      payload.estimated_delivery_date = `${formData.estimated_delivery_date.trim()}T12:00:00`
+    }
     if (formData.cargo_description?.trim()) payload.cargo_description = formData.cargo_description.trim()
 
     if (formData.estimated_cost) {
@@ -332,6 +336,18 @@ export default function MissionCreateWizard({ open, onClose, onComplete, clients
                 type="email"
                 value={formData.consignee_email}
                 onChange={(e) => setFormData((prev) => ({ ...prev, consignee_email: e.target.value }))}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <FormTextField
+                label="Date of arrival"
+                type="date"
+                value={formData.estimated_delivery_date}
+                onChange={(e) =>
+                  setFormData((prev) => ({ ...prev, estimated_delivery_date: e.target.value }))
+                }
+                helperText="Optional. Shown with a countdown on admin, field staff, and client views."
+                InputLabelProps={{ shrink: true }}
               />
             </Grid>
             <Grid item xs={12}>

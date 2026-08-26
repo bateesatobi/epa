@@ -13,6 +13,7 @@ import {
 } from '@mui/material'
 import { ShieldOutlined } from '@mui/icons-material'
 import { clientPortalAPI } from '../../services/clientPortalApi'
+import { ArrivalMeta } from '../../components/consignment/ArrivalCountdownChip'
 
 const REQUIRED_TYPES = [
   't1_document',
@@ -111,6 +112,7 @@ export default function ClientCompliance() {
                   <Typography variant="body2" color="text.secondary" mb={1}>
                     Container {s.container_number || '—'}
                   </Typography>
+                  <ArrivalMeta date={s.estimated_delivery_date} status={s.status} sx={{ mb: 1 }} />
                   <LinearProgress variant="determinate" value={progress} sx={{ mb: 2, borderRadius: 1, height: 8 }} />
                   <Typography variant="body2" color="text.secondary" mb={2}>
                     {docs.length} document{docs.length !== 1 ? 's' : ''} uploaded

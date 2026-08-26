@@ -22,6 +22,7 @@ import {
   statusColor,
   formatStatusLabel,
 } from '../../hooks/useFieldStaff'
+import { ArrivalMeta } from '../../components/consignment/ArrivalCountdownChip'
 
 function matchesSearch(row, query) {
   if (!query) return true
@@ -31,6 +32,7 @@ function matchesSearch(row, query) {
     row.destination,
     row.consignee_name,
     row.container_number,
+    row.estimated_delivery_date,
     row.status,
     row.shipment_status,
     ...(row.activity_names || []),
@@ -99,6 +101,11 @@ function ConsignmentRow({ row, onOpen }) {
           <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
             Container: {row.container_number || '—'}
           </Typography>
+          <ArrivalMeta
+            date={row.estimated_delivery_date}
+            status={row.shipment_status || row.status}
+            sx={{ mt: 0.5 }}
+          />
           {row.consignee_name ? (
             <Typography variant="body2" fontWeight={600} sx={{ mt: 0.5 }}>
               {row.consignee_name}

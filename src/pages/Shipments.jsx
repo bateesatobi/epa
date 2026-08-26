@@ -74,6 +74,8 @@ import {
 } from '@mui/icons-material'
 import { shipmentsAPI, usersAPI, clientsAPI, depotsAPI, clearanceActivitiesAPI } from '../services/api'
 import { toast } from 'react-toastify'
+import ArrivalCountdownChip from '../components/consignment/ArrivalCountdownChip'
+import { formatArrivalDate, toDateInputValue, toEstimatedDeliveryPayload } from '../utils/arrivalCountdown'
 import { format } from 'date-fns'
 import DataTable from '../components/DataTable'
 import FormDialog from '../components/FormDialog'
@@ -121,6 +123,7 @@ const Shipments = () => {
     consignee_phone: '',
     container_number: '',
     cargo_description: '',
+    estimated_delivery_date: '',
     estimated_cost: '',
   })
   const [actionMenu, setActionMenu] = useState({ anchorEl: null, shipment: null })
@@ -268,6 +271,7 @@ const Shipments = () => {
       consignee_phone: shipment.consignee_phone || '',
       container_number: shipment.container_number || '',
       cargo_description: shipment.cargo_description || '',
+      estimated_delivery_date: toDateInputValue(shipment.estimated_delivery_date),
       estimated_cost: shipment.estimated_cost ?? '',
     })
   }
@@ -303,6 +307,8 @@ const Shipments = () => {
     if (formData.consignee_email?.trim()) payload.consignee_email = formData.consignee_email.trim()
     if (formData.consignee_phone?.trim()) payload.consignee_phone = formData.consignee_phone.trim()
     if (formData.container_number?.trim()) payload.container_number = formData.container_number.trim()
+    const arrivalPayload = toEstimatedDeliveryPayload(formData.estimated_delivery_date)
+    if (arrivalPayload) payload.estimated_delivery_date = arrivalPayload
     if (formData.cargo_description?.trim()) payload.cargo_description = formData.cargo_description.trim()
 
     if (formData.estimated_cost) {
@@ -684,6 +690,22 @@ const Shipments = () => {
               ),
             },
             {
+              field: 'estimated_delivery_date',
+              headerName: 'Date of arrival',
+              render: (row) => (
+                <Typography variant="body2" fontWeight={600}>
+                  {formatArrivalDate(row.estimated_delivery_date)}
+                </Typography>
+              ),
+            },
+            {
+              field: 'countdown',
+              headerName: 'Countdown',
+              render: (row) => (
+                <ArrivalCountdownChip date={row.estimated_delivery_date} status={row.status} />
+              ),
+            },
+            {
               field: 'status',
               headerName: 'Checkpoint',
               render: (row) => (
@@ -835,6 +857,16 @@ const Shipments = () => {
               type="email"
               value={formData.consignee_email}
               onChange={(e) => setFormData({ ...formData, consignee_email: e.target.value })}
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <FormTextField
+              label="Date of arrival"
+              type="date"
+              value={formData.estimated_delivery_date}
+              onChange={(e) => setFormData({ ...formData, estimated_delivery_date: e.target.value })}
+              helperText="Optional"
+              InputLabelProps={{ shrink: true }}
             />
           </Grid>
           <Grid item xs={12}>

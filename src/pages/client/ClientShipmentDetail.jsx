@@ -22,6 +22,7 @@ import { ArrowBack, Upload, Description } from '@mui/icons-material'
 import { clientPortalAPI } from '../../services/clientPortalApi'
 import { showErrorAlert, showSuccessAlert } from '../../utils/alerts'
 import { formatShipmentStatusLabel, isMissionClosed } from '../../utils/shipmentStatus'
+import { ArrivalMeta } from '../../components/consignment/ArrivalCountdownChip'
 
 const DOC_TYPES = [
   { value: 't1_document', label: 'T1 Document' },
@@ -158,6 +159,9 @@ export default function ClientShipmentDetail() {
           {shipment?.origin} → {shipment?.destination}
           {shipment?.container_number ? ` · Container ${shipment.container_number}` : ''}
         </Typography>
+        <Box sx={{ mt: 1.5 }}>
+          <ArrivalMeta date={shipment?.estimated_delivery_date} status={shipment?.status} onDark />
+        </Box>
       </Box>
 
       {isMissionClosed(shipment?.status) && (
